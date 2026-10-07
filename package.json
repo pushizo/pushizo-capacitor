@@ -1,0 +1,67 @@
+{
+  "name": "@herosignal/capacitor",
+  "version": "0.1.0",
+  "description": "HeroSignal Capacitor (Ionic) eklentisi: push bildirimi, kullanıcı/tag, e-posta/SMS, in-app mesaj ve bildirim kutusu",
+  "license": "MIT",
+  "author": "HeroSignal <sdk@herosignal.dev>",
+  "homepage": "https://github.com/herosignal/herosignal",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/herosignal/herosignal.git",
+    "directory": "sdk/capacitor"
+  },
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "native",
+    "ionic",
+    "push",
+    "notifications",
+    "herosignal"
+  ],
+  "type": "module",
+  "main": "./dist/esm/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "default": "./dist/esm/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "android/src/main/",
+    "android/build.gradle",
+    "dist/",
+    "ios/Sources",
+    "HerosignalCapacitor.podspec",
+    "Package.swift"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prepack": "npm run build"
+  },
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=6.0.0",
+    "@herosignal/web": "^0.1.0"
+  },
+  "devDependencies": {
+    "@capacitor/core": "6.2.2",
+    "@herosignal/web": "file:../web",
+    "happy-dom": "^20.14.5",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
+  }
+}
