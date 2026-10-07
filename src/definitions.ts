@@ -1,0 +1,188 @@
+import type { PluginListenerHandle } from '@capacitor/core';
+
+/** SDK günlük seviyesi (native `HsLog.Level` / `HSLog.Level`). */
+export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'debug';
+
+/** `HeroSignal.initialize` seçenekleri. */
+export interface InitializeOptions {
+  /** Dashboard'daki uygulama kimliği (`app_…`). */
+  appId: string;
+  /** API kökü; varsayılan `https://api.herosignal.dev`. */
+  apiUrl?: string;
+  /** KVKK/GDPR: `setConsentGiven(true)` çağrılana kadar hiçbir ağ çağrısı yapılmaz. */
+  requiresPrivacyConsent?: boolean;
+  /** Varsayılan `warn`. */
+  logLevel?: LogLevel;
+  /** Yalnızca web platformu (`@herosignal/web`) için service worker ayarları. */
+  web?: {
+    serviceWorkerPath?: string;
+    serviceWorkerScope?: string;
+    allowLocalhostAsSecureOrigin?: boolean;
+  };
+}
+
+/** Bildirim içeriği (native `HsNotification` / `HSNotification`). */
+export interface HeroSignalNotification {
+  title: string | null;
+  body: string | null;
+  url: string | null;
+  imageUrl: string | null;
+  deliveryId: string | null;
+  messageId: string | null;
+  data: Record<string, string>;
+  /** Yalnızca Android: tepsi kimliği (`Notifications.removeNotification` için); iOS/web'de null. */
+  androidNotificationId: number | null;
+}
+
+/** Bildirim tıklaması: `result.actionId` düğme kimliği (gövde tıklamasında null). */
+export interface NotificationClickEvent {
+  notification: HeroSignalNotification;
+  result: { actionId: string | null; url: string | null };
+}
+
+/** Uygulama ön plandayken gelen bildirim; dinleyici gösterimi engelleyebilir veya erteleyebilir. */
+export interface ForegroundWillDisplayEvent {
+  notification: HeroSignalNotification;
+  /** Bildirimin şimdi gösterilmesini engeller; daha sonra `display()` ile gösterilebilir. */
+  preventDefault(): void;
+  /** Engellenmiş bildirimi gösterir (iOS'ta olaydan sonra en fazla 25 sn içinde). */
+  display(): Promise<void>;
+  readonly prevented: boolean;
+}
+
+/** Push aboneliği durumu. */
+export interface PushSubscriptionState {
+  id: string | null;
+  token: string | null;
+  optedIn: boolean;
+  permission: boolean;
+}
+
+export interface PermissionChangeEvent {
+  permission: boolean;
+}
+
+export interface InAppClickEvent {
+  message: { id: string };
+  result: { actionId: string; url: string | null };
+}
+
+export type InAppLifecycleEventName = 'willDisplay' | 'didDisplay' | 'willDismiss' | 'didDismiss';
+
+export interface InAppLifecycleEvent {
+  event: InAppLifecycleEventName;
+  message: { id: string };
+}
+
+/** In-app yaşam döngüsü dinleyicisi; yalnızca ilgilenilen alanlar verilir. */
+export interface InAppLifecycleListener {
+  willDisplay?: (event: InAppLifecycleEvent) => void;
+  didDisplay?: (event: InAppLifecycleEvent) => void;
+  willDismiss?: (event: InAppLifecycleEvent) => void;
+  didDismiss?: (event: InAppLifecycleEvent) => void;
+}
+
+/** Bildirim kutusu öğesi; zamanlar epoch milisaniyedir. */
+export interface InboxItem {
+  id: string;
+  messageId: string | null;
+  title: string | null;
+  body: string | null;
+  url: string | null;
+  imageUrl: string | null;
+  data: Record<string, string>;
+  read: boolean;
+  readAt: number | null;
+  archivedAt: number | null;
+  expiresAt: number | null;
+  createdAt: number | null;
+}
+
+export interface InboxPage {
+  items: InboxItem[];
+  unreadCount: number;
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+export interface InboxListOptions {
+  /** 1-200 (varsayılan 50). */
+  limit?: number;
+  cursor?: string;
+}
+
+export type InAppTriggerValue = string | number | boolean;
+
+/** Native katmanın gönderdiği ham ön plan olayı. */
+export interface RawForegroundEvent {
+  /** Erteleme kimliği; `displayNotification` ile kullanılır. */
+  notificationId: string;
+  /** true ise native gösterimi bekletiyor; JS karar vermeli (göster/engelle). */
+  pending: boolean;
+  notification: HeroSignalNotification;
+}
+
+export interface RawInAppLifecycleEvent {
+  event: InAppLifecycleEventName;
+  message: { id: string };
+}
+
+/**
+ * Ham Capacitor eklenti yüzeyi (native köprü). Uygulamalar doğrudan `HeroSignal` cephesini
+ * (`index.ts`) kullanır; bu arayüz cephe ve testler içindir.
+ */
+export interface HeroSignalPlugin {
+  initialize(options: InitializeOptions): Promise<void>;
+  setConsentGiven(options: { given: boolean }): Promise<void>;
+  login(options: { externalId: string; identityHash?: string }): Promise<void>;
+  logout(): Promise<void>;
+
+  addTags(options: { tags: Record<string, string> }): Promise<void>;
+  removeTags(options: { keys: string[] }): Promise<void>;
+  getTags(): Promise<{ tags: Record<string, string> }>;
+  addAliases(options: { aliases: Record<string, string> }): Promise<void>;
+  removeAlias(options: { label: string }): Promise<void>;
+  setLanguage(options: { code: string }): Promise<void>;
+  addEmail(options: { email: string }): Promise<void>;
+  removeEmail(options: { email: string }): Promise<void>;
+  addSms(options: { phoneNumber: string }): Promise<void>;
+  removeSms(options: { phoneNumber: string }): Promise<void>;
+  getUser(): Promise<{ id: string | null; externalId: string | null }>;
+
+  getPushSubscription(): Promise<PushSubscriptionState>;
+  optIn(): Promise<void>;
+  optOut(): Promise<void>;
+
+  getPermission(): Promise<{ permission: boolean }>;
+  requestPermission(): Promise<{ permission: boolean }>;
+  clearAll(): Promise<void>;
+  removeNotification(options: { id: number }): Promise<void>;
+  removeGroupedNotifications(options: { group: string }): Promise<void>;
+  setForegroundHandlerEnabled(options: { enabled: boolean }): Promise<void>;
+  displayNotification(options: { notificationId: string }): Promise<void>;
+
+  sendEvent(options: { name: string; properties?: Record<string, unknown>; value?: number }): Promise<void>;
+  setLogLevel(options: { level: LogLevel }): Promise<void>;
+
+  addTriggers(options: { triggers: Record<string, string> }): Promise<void>;
+  removeTriggers(options: { keys: string[] }): Promise<void>;
+  clearTriggers(): Promise<void>;
+  getTriggers(): Promise<{ triggers: Record<string, string> }>;
+  setScreen(options: { name: string | null }): Promise<void>;
+  setInAppPaused(options: { paused: boolean }): Promise<void>;
+  getInAppPaused(): Promise<{ paused: boolean }>;
+
+  inboxList(options: InboxListOptions): Promise<InboxPage>;
+  inboxMarkRead(options: { id: string }): Promise<InboxItem>;
+  inboxMarkAllRead(): Promise<{ unreadCount: number }>;
+  inboxArchive(options: { id: string }): Promise<void>;
+  inboxUnreadCount(): Promise<{ unreadCount: number }>;
+
+  addListener(eventName: 'click', listener: (event: NotificationClickEvent) => void): Promise<PluginListenerHandle>;
+  addListener(eventName: 'foregroundWillDisplay', listener: (event: RawForegroundEvent) => void): Promise<PluginListenerHandle>;
+  addListener(eventName: 'pushSubscriptionChange', listener: (event: PushSubscriptionState) => void): Promise<PluginListenerHandle>;
+  addListener(eventName: 'permissionChange', listener: (event: PermissionChangeEvent) => void): Promise<PluginListenerHandle>;
+  addListener(eventName: 'inAppClick', listener: (event: InAppClickEvent) => void): Promise<PluginListenerHandle>;
+  addListener(eventName: 'inAppLifecycle', listener: (event: RawInAppLifecycleEvent) => void): Promise<PluginListenerHandle>;
+  removeAllListeners(): Promise<void>;
+}

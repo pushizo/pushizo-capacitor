@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- INTERNET, POST_NOTIFICATIONS, FCM servisi ve bildirim Activity'si HeroSignal Android SDK manifestinden birleşir. -->
+    <application>
+        <!-- Süreç yeniden başladığında kayıtlı ayarlarla SDK'yı erken başlatır (soğuk başlatma tıklaması). -->
+        <provider
+            android:name="com.herosignal.capacitor.HeroSignalInitProvider"
+            android:authorities="${applicationId}.herosignal-capacitor-init"
+            android:exported="false" />
+    </application>
+</manifest>

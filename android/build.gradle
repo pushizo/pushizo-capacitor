@@ -1,0 +1,61 @@
+// HeroSignal Capacitor eklentisi (Android). Uygulamanın Capacitor projesi tarafından `:herosignal-capacitor`
+// modülü olarak eklenir (npx cap sync). Sürümler uygulamanın `variables.gradle` değerleriyle ezilebilir.
+ext {
+    herosignalAndroidVersion = project.hasProperty('herosignalAndroidVersion') ? rootProject.ext.herosignalAndroidVersion : '0.1.0'
+}
+
+buildscript {
+    ext.hs_kotlin_version = project.hasProperty('kotlin_version') ? rootProject.ext.kotlin_version : '2.0.21'
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.7.3'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$hs_kotlin_version"
+    }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace = 'com.herosignal.capacitor'
+    compileSdk = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 35
+
+    defaultConfig {
+        minSdk = project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 23
+        targetSdk = project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 35
+        consumerProguardFiles 'proguard-rules.pro'
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    lint {
+        abortOnError = false
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    implementation project(':capacitor-android')
+    // Monorepo içinde uygulama settings.gradle'ında ":herosignal" modülü varsa kaynaktan,
+    // yoksa yayınlanmış artefakttan (publishToMavenLocal / Maven Central) alınır.
+    if (rootProject.findProject(':herosignal') != null) {
+        api project(':herosignal')
+    } else {
+        api "com.herosignal:herosignal-android:$herosignalAndroidVersion"
+    }
+}
