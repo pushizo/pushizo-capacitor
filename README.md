@@ -65,6 +65,9 @@ HeroSignal.Notifications.addPermissionObserver(({ permission }) => console.log('
 stop(); // aboneliği kaldırır
 ```
 
+İzin olayı (`permissionChange`) yerel Android/iOS SDK izin gözlemcisinden gelir: izin isteği sonuçlandığında ve uygulama
+ön plana döndüğünde izin ayarlardan değiştiyse yalnızca gerçek değişiklikte iletilir.
+
 ### In-app mesajlar
 
 ```ts

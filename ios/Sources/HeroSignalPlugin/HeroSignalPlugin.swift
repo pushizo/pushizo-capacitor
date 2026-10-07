@@ -78,9 +78,6 @@ public class HeroSignalPlugin: CAPPlugin, CAPBridgedPlugin {
         observers.append(center.addObserver(forName: .capacitorDidFailToRegisterForRemoteNotifications, object: nil, queue: .main) { notification in
             if let error = notification.object as? Error { HeroSignal.setDeviceTokenError(error) }
         })
-        observers.append(center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.core.checkPermission()
-        })
     }
 
     deinit {

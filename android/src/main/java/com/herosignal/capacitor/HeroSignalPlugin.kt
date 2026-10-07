@@ -31,11 +31,6 @@ class HeroSignalPlugin : Plugin() {
         core.attachIfInitialized()
     }
 
-    override fun handleOnResume() {
-        super.handleOnResume()
-        core.checkPermission()
-    }
-
     override fun handleOnDestroy() {
         core.detach()
         super.handleOnDestroy()
