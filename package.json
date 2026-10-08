@@ -58,6 +58,7 @@
     "@herosignal/web": "^0.1.0"
   },
   "devDependencies": {
+    "@capacitor/android": "6.2.1",
     "@capacitor/core": "6.2.2",
     "@herosignal/web": "file:../web",
     "happy-dom": "^20.14.5",

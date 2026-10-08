@@ -1,0 +1,65 @@
+// HeroSignal Capacitor eklentisi (Android). Capacitor CLI bu modülü uygulamanın
+// capacitor.settings.gradle dosyasına ":herosignal-capacitor" olarak ekler.
+ext {
+    junitVersion = project.hasProperty('junitVersion') ? rootProject.ext.junitVersion : '4.13.2'
+}
+
+buildscript {
+    ext.herosignal_kotlin_version = project.hasProperty('kotlin_version') ? rootProject.ext.kotlin_version : '2.0.21'
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.7.3'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$herosignal_kotlin_version"
+    }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace 'com.herosignal.capacitor'
+    compileSdk project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 35
+    defaultConfig {
+        // Native SDK minSdk 23; Capacitor 6 minSdk 22 olduğundan yüksek olan kullanılır.
+        minSdkVersion project.hasProperty('minSdkVersion') ? Math.max(rootProject.ext.minSdkVersion as int, 23) : 23
+        targetSdkVersion project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 35
+        consumerProguardFiles 'proguard-rules.pro'
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    lint {
+        abortOnError false
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+    // `gradle publishToMavenLocal` ile yerelde yayınlanan native SDK için.
+    mavenLocal()
+}
+
+dependencies {
+    implementation project(':capacitor-android')
+    // Monorepo/yerel geliştirmede uygulama settings.gradle'ında ":herosignal" modülü varsa kaynaktan,
+    // yoksa yayınlanmış artefakttan (Maven Central / mavenLocal) alınır.
+    if (rootProject.findProject(':herosignal') != null) {
+        api project(':herosignal')
+    } else {
+        api 'com.herosignal:herosignal-android:0.1.0'
+    }
+    testImplementation "junit:junit:$junitVersion"
+}
