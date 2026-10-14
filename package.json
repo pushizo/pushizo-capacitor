@@ -54,6 +54,9 @@
       "src": "android"
     }
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "peerDependencies": {
     "@capacitor/core": ">=6.0.0",
     "@herosignal/web": "^0.1.0"
