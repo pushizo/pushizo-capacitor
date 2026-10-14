@@ -134,7 +134,7 @@ func application(_ application: UIApplication, didFailToRegisterForRemoteNotific
 }
 ```
 
-4. CocoaPods: `HeroSignal` pod'u yayınlanana kadar `ios/App/Podfile` içine `pod 'HeroSignal', :path => '<repo>/sdk/ios'` ekleyin. SPM (Capacitor 7): paket `https://github.com/herosignal/herosignal-ios.git` deposundan çözülür.
+4. CocoaPods: `HeroSignal` pod'u yayınlanana kadar `ios/App/Podfile` içine `pod 'HeroSignal', :path => '<repo>/sdk/ios'` ekleyin. SPM (Capacitor 7): paket `https://github.com/exec0de/herosignal-ios.git` deposundan çözülür.
 
 HeroSignal SDK'sı `UNUserNotificationCenter` delegesini üstlenir (ön plan gösterimi ve tıklama). Aynı uygulamada `@capacitor/push-notifications` kullanmayın.
 
