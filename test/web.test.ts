@@ -26,6 +26,18 @@ function fakeWebSdk() {
       removeEmail: vi.fn(),
       addSms: vi.fn(),
       removeSms: vi.fn(),
+      getPreferences: vi.fn(async () => ({
+        preferences: [
+          { category: 'promo', channel: null, optedIn: true, explicit: false, source: null, updatedAt: null },
+          { category: 'promo', channel: 'email', optedIn: true, explicit: true, source: 'api', updatedAt: '2026-10-01T10:00:00.000Z' },
+          { category: 'news', channel: null, optedIn: false, explicit: false, source: null, updatedAt: null },
+        ],
+        categories: [
+          { key: 'promo', name: { tr: 'Kampanya' }, description: {}, channels: ['email', 'sms'], defaultOptedIn: true },
+          { key: 'news', name: { en: 'News' }, description: {}, channels: null, defaultOptedIn: false },
+        ],
+      })),
+      setPreferences: vi.fn(),
       id: 'usr_1',
       externalId: 'ext_1',
       pushSubscription: {
@@ -212,6 +224,42 @@ describe('HeroSignalWeb', () => {
     expect((await hs.Inbox.markRead('i1')).readAt).toBe(Date.parse('2026-10-02T00:00:00.000Z'));
     expect(await hs.Inbox.markAllRead()).toBe(0);
     expect(await hs.Inbox.unreadCount()).toBe(4);
+  });
+
+  it('tercihler: ISO zamanı epoch milisaniyeye çevrilir; yazma kuyruğa verilir ve sonuç listesi döner', async () => {
+    const { sdk, web } = fakeWebSdk();
+    const hs = coreFor(web);
+    const prefs = await hs.User.getPreferences();
+    expect(prefs.preferences[1].updatedAt).toBe(Date.parse('2026-10-01T10:00:00.000Z'));
+    expect(prefs.categories[0]).toEqual({ key: 'promo', name: { tr: 'Kampanya' }, description: {}, channels: ['email', 'sms'], defaultOptedIn: true });
+
+    const result = await hs.User.setPreferences([
+      { category: 'promo', channel: 'sms', optedIn: false },
+      { category: 'promo', optedIn: false },
+      { category: 'news', optedIn: true },
+    ]);
+    expect(sdk.User.setPreferences).toHaveBeenCalledWith([
+      { category: 'promo', optedIn: false, channel: 'sms' },
+      { category: 'promo', optedIn: false, channel: null },
+      { category: 'news', optedIn: true, channel: null },
+    ]);
+    expect(result.preferences.map((p) => [p.category, p.channel, p.optedIn, p.explicit, p.source])).toEqual([
+      ['promo', null, false, true, 'sdk'],
+      ['promo', 'email', true, true, 'api'],
+      ['promo', 'sms', false, true, 'sdk'],
+      ['news', null, true, true, 'sdk'],
+    ]);
+    expect(typeof result.preferences[0].updatedAt).toBe('number');
+  });
+
+  it('tercihler: bilinmeyen kategori ve kapsam dışı kanal sunucu koduyla reddedilir, kuyruğa yazılmaz', async () => {
+    const { sdk, web } = fakeWebSdk();
+    const hs = coreFor(web);
+    await expect(hs.User.setPreferences([{ category: 'missing', optedIn: true }])).rejects.toMatchObject({ code: 'HS_NOT_FOUND' });
+    await expect(hs.User.setPreferences([{ category: 'promo', channel: 'web_push', optedIn: true }])).rejects.toMatchObject({
+      code: 'HS_VALIDATION_ERROR',
+    });
+    expect(sdk.User.setPreferences).not.toHaveBeenCalled();
   });
 
   it('yalnızca Android olan removeNotification web\'de unavailable döner', async () => {

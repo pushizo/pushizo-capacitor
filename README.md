@@ -93,6 +93,20 @@ const next = page.hasMore ? await HeroSignal.Inbox.list({ cursor: page.nextCurso
 
 Bildirim kutusu kayıtlı bir kullanıcı ve abonelik ister; yoksa `NOT_READY` koduyla reddedilir.
 
+### Bildirim tercihleri
+
+```ts
+const { preferences, categories } = await HeroSignal.User.getPreferences();
+for (const c of categories) console.log(c.key, c.name.tr ?? c.name.en, c.channels, c.defaultOptedIn);
+// channel verilmezse (veya null) tüm kanallar; 1-100 kayıt. Güncel liste döner.
+const updated = await HeroSignal.User.setPreferences([
+  { category: 'promo', optedIn: false },
+  { category: 'news', channel: 'email', optedIn: true },
+]);
+```
+
+Tercihler bir abonelik ister (yoksa `NOT_READY`); sahiplik kanıtı native SDK tarafından eklenir. Tanımsız kategori `HS_NOT_FOUND`, kategorinin kapsamadığı kanal `HS_VALIDATION_ERROR` ile reddedilir. `updatedAt` epoch milisaniyedir.
+
 ### Gizlilik onayı (KVKK/GDPR)
 
 `requiresPrivacyConsent: true` ile başlatıldığında `await HeroSignal.setConsentGiven(true)` çağrılana kadar hiçbir ağ çağrısı yapılmaz.
@@ -173,7 +187,7 @@ class NotificationService: UNNotificationServiceExtension {
 
 ## Web
 
-Web platformunda `@herosignal/web` kullanılır: `HeroSignalSDKWorker.js` dosyasını sitenizin köküne koyun ve gerekirse `initialize(appId, { web: { serviceWorkerPath: '/HeroSignalSDKWorker.js' } })` verin. Web'de `removeNotification` yoktur (`UNAVAILABLE`); `clearAll` service worker bildirimlerini kapatır.
+Web platformunda `@herosignal/web` kullanılır: `HeroSignalSDKWorker.js` dosyasını sitenizin köküne koyun ve gerekirse `initialize(appId, { web: { serviceWorkerPath: '/HeroSignalSDKWorker.js' } })` verin. Web'de `removeNotification` yoktur (`UNAVAILABLE`); `clearAll` service worker bildirimlerini kapatır. `User.setPreferences` web'de güncel listeyi okuyup kategori/kanalı denetler, yazmayı web SDK'nın çevrimdışı kuyruğuna verir ve yazma sonrası listeyi döndürür (istek arka planda gönderilir).
 
 ## Geliştirme
 

@@ -12,6 +12,7 @@ import type {
   LogLevel as WebLogLevel,
   NotificationClickEvent as WebClickEvent,
   PushSubscriptionState as WebPushSubscriptionState,
+  UserPreferences as WebUserPreferences,
 } from '@herosignal/web';
 
 import type {
@@ -22,8 +23,11 @@ import type {
   InboxPage,
   InitializeOptions,
   LogLevel,
+  PreferenceInput,
   PushSubscriptionState,
   RawForegroundEvent,
+  UserPreference,
+  UserPreferences,
 } from './definitions.js';
 
 /** Web SDK örneğinin bu eklentinin kullandığı yüzeyi (testlerde sahte örnek verilebilir). */
@@ -86,6 +90,54 @@ function mapInboxPage(page: WebInboxPage): InboxPage {
     nextCursor: page.nextCursor,
     hasMore: page.hasMore,
   };
+}
+
+function mapPreferences(result: WebUserPreferences): UserPreferences {
+  return {
+    preferences: result.preferences.map((p) => ({
+      category: p.category,
+      channel: p.channel ?? null,
+      optedIn: p.optedIn,
+      explicit: p.explicit,
+      source: p.source ?? null,
+      updatedAt: millis(p.updatedAt),
+    })),
+    categories: result.categories.map((c) => ({
+      key: c.key,
+      name: c.name ?? {},
+      description: c.description ?? {},
+      channels: c.channels ?? null,
+      defaultOptedIn: c.defaultOptedIn,
+    })),
+  };
+}
+
+/** Native köprünün sunucu hata kodlarıyla aynı `code` alanını taşıyan hata. */
+function codedError(code: string, message: string): Error {
+  return Object.assign(new Error(message), { code });
+}
+
+/**
+ * Kuyruğa alınan yazma sunucuya ulaştığında `PUT /preferences` yanıtının içereceği listeyi üretir (sunucuyla aynı kural):
+ * aynı kategori × kanal kaydı açık değerle değiştirilir, yoksa kategorinin son kaydından sonra eklenir.
+ */
+function applyPreferenceInputs(current: UserPreferences, inputs: PreferenceInput[], now: number): UserPreferences {
+  const preferences = [...current.preferences];
+  for (const input of inputs) {
+    const channel = input.channel ?? null;
+    const next: UserPreference = { category: input.category, channel, optedIn: input.optedIn, explicit: true, source: 'sdk', updatedAt: now };
+    const index = preferences.findIndex((p) => p.category === input.category && p.channel === channel);
+    if (index >= 0) {
+      preferences[index] = next;
+      continue;
+    }
+    let last = -1;
+    preferences.forEach((p, i) => {
+      if (p.category === input.category) last = i;
+    });
+    preferences.splice(last >= 0 ? last + 1 : preferences.length, 0, next);
+  }
+  return { preferences, categories: current.categories };
 }
 
 function mapState(s: WebPushSubscriptionState): PushSubscriptionState {
@@ -221,6 +273,29 @@ export class HeroSignalWeb extends WebPlugin implements HeroSignalPlugin {
 
   async getUser(): Promise<{ id: string | null; externalId: string | null }> {
     return { id: this.sdk.User.id, externalId: this.sdk.User.externalId };
+  }
+
+  async getPreferences(): Promise<UserPreferences> {
+    return mapPreferences(await this.sdk.User.getPreferences());
+  }
+
+  /**
+   * Web SDK tercih yazmasını çevrimdışı kuyruğa alır ve sonuç döndürmez. Native ile aynı sözleşme için önce güncel
+   * liste okunur (abonelik ve sahiplik kanıtı gerekir), kategori/kanal sunucu kurallarıyla denetlenir, yazma kuyruğa
+   * verilir ve sunucunun yazma sonrası döndüreceği liste üretilir.
+   */
+  async setPreferences(options: { preferences: PreferenceInput[] }): Promise<UserPreferences> {
+    const inputs = options.preferences ?? [];
+    const current = mapPreferences(await this.sdk.User.getPreferences());
+    for (const p of inputs) {
+      const category = current.categories.find((c) => c.key === p.category);
+      if (!category) throw codedError('HS_NOT_FOUND', `Kategori bulunamadı: ${p.category}`);
+      if (p.channel && category.channels && !category.channels.includes(p.channel)) {
+        throw codedError('HS_VALIDATION_ERROR', `'${p.category}' kategorisi ${p.channel} kanalını kapsamıyor.`);
+      }
+    }
+    this.sdk.User.setPreferences(inputs.map((p) => ({ category: p.category, optedIn: p.optedIn, channel: p.channel ?? null })));
+    return applyPreferenceInputs(current, inputs, Date.now());
   }
 
   async getPushSubscription(): Promise<PushSubscriptionState> {

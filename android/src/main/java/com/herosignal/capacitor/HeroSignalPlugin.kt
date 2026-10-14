@@ -64,6 +64,8 @@ class HeroSignalPlugin : Plugin() {
     @PluginMethod fun addSms(call: PluginCall) = dispatch(call)
     @PluginMethod fun removeSms(call: PluginCall) = dispatch(call)
     @PluginMethod fun getUser(call: PluginCall) = dispatch(call)
+    @PluginMethod fun getPreferences(call: PluginCall) = dispatch(call)
+    @PluginMethod fun setPreferences(call: PluginCall) = dispatch(call)
     @PluginMethod fun getPushSubscription(call: PluginCall) = dispatch(call)
     @PluginMethod fun optIn(call: PluginCall) = dispatch(call)
     @PluginMethod fun optOut(call: PluginCall) = dispatch(call)
