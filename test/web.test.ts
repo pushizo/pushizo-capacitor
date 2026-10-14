@@ -262,9 +262,12 @@ describe('HeroSignalWeb', () => {
     expect(sdk.User.setPreferences).not.toHaveBeenCalled();
   });
 
-  it('yalnızca Android olan removeNotification web\'de unavailable döner', async () => {
+  it('yalnızca native olan removeNotification ve e-posta/SMS listeleri web\'de unavailable döner', async () => {
     const { web } = fakeWebSdk();
     await expect(coreFor(web).Notifications.removeNotification(3)).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    await expect(coreFor(web).Notifications.removeNotification('req-1')).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    await expect(coreFor(web).User.getEmails()).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    await expect(coreFor(web).User.getSmsNumbers()).rejects.toMatchObject({ code: 'UNAVAILABLE' });
   });
 
   it('clearAll service worker bildirimlerini kapatır', async () => {

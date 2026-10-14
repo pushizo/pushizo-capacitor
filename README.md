@@ -116,7 +116,7 @@ Tercihler bir abonelik ister (yoksa `NOT_READY`); sahiplik kanıtı native SDK t
 ```ts
 await HeroSignal.Notifications.clearAll();                    // tepsi/bildirim merkezi + rozet
 await HeroSignal.Notifications.removeGroupedNotifications('orders');
-await HeroSignal.Notifications.removeNotification(id);        // yalnızca Android (notification.androidNotificationId)
+await HeroSignal.Notifications.removeNotification(id);        // Android: notification.androidNotificationId; iOS: UNNotificationRequest.identifier (metin)
 await HeroSignal.Debug.setLogLevel('debug');
 await HeroSignal.logout();
 ```
@@ -187,7 +187,7 @@ class NotificationService: UNNotificationServiceExtension {
 
 ## Web
 
-Web platformunda `@herosignal/web` kullanılır: `HeroSignalSDKWorker.js` dosyasını sitenizin köküne koyun ve gerekirse `initialize(appId, { web: { serviceWorkerPath: '/HeroSignalSDKWorker.js' } })` verin. Web'de `removeNotification` yoktur (`UNAVAILABLE`); `clearAll` service worker bildirimlerini kapatır. `User.setPreferences` web'de güncel listeyi okuyup kategori/kanalı denetler, yazmayı web SDK'nın çevrimdışı kuyruğuna verir ve yazma sonrası listeyi döndürür (istek arka planda gönderilir).
+Web platformunda `@herosignal/web` kullanılır: `HeroSignalSDKWorker.js` dosyasını sitenizin köküne koyun ve gerekirse `initialize(appId, { web: { serviceWorkerPath: '/HeroSignalSDKWorker.js' } })` verin. Web'de `removeNotification`, `User.getEmails` ve `User.getSmsNumbers` yoktur (`UNAVAILABLE`); `clearAll` service worker bildirimlerini kapatır. `User.setPreferences` web'de güncel listeyi okuyup kategori/kanalı denetler, yazmayı web SDK'nın çevrimdışı kuyruğuna verir ve yazma sonrası listeyi döndürür (istek arka planda gönderilir).
 
 ## Geliştirme
 

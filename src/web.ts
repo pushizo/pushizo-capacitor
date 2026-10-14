@@ -275,6 +275,11 @@ export class HeroSignalWeb extends WebPlugin implements HeroSignalPlugin {
     return { id: this.sdk.User.id, externalId: this.sdk.User.externalId };
   }
 
+  /** Web SDK yerel e-posta/SMS listesini dışa açmadığından desteklenmez. */
+  async getContacts(): Promise<{ emails: string[]; smsNumbers: string[] }> {
+    throw this.unavailable('getEmails/getSmsNumbers yalnızca Android ve iOS\'ta kullanılabilir.');
+  }
+
   async getPreferences(): Promise<UserPreferences> {
     return mapPreferences(await this.sdk.User.getPreferences());
   }
@@ -329,8 +334,8 @@ export class HeroSignalWeb extends WebPlugin implements HeroSignalPlugin {
     notifications.forEach((n) => n.close());
   }
 
-  async removeNotification(_options: { id: number }): Promise<void> {
-    throw this.unavailable('removeNotification yalnızca Android\'de kullanılabilir.');
+  async removeNotification(_options: { id?: number; identifier?: string }): Promise<void> {
+    throw this.unavailable('removeNotification yalnızca Android ve iOS\'ta kullanılabilir.');
   }
 
   /** Web'de grup karşılığı bildirim `tag` alanıdır. */
