@@ -31,6 +31,8 @@ public class HeroSignalPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "addSms", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "removeSms", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getUser", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getPreferences", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setPreferences", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getPushSubscription", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "optIn", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "optOut", returnType: CAPPluginReturnPromise),
@@ -115,6 +117,8 @@ public class HeroSignalPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func addSms(_ call: CAPPluginCall) { dispatch(call) }
     @objc func removeSms(_ call: CAPPluginCall) { dispatch(call) }
     @objc func getUser(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func getPreferences(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func setPreferences(_ call: CAPPluginCall) { dispatch(call) }
     @objc func getPushSubscription(_ call: CAPPluginCall) { dispatch(call) }
     @objc func optIn(_ call: CAPPluginCall) { dispatch(call) }
     @objc func optOut(_ call: CAPPluginCall) { dispatch(call) }
