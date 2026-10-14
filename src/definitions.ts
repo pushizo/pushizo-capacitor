@@ -188,6 +188,7 @@ export interface HeroSignalPlugin {
   addSms(options: { phoneNumber: string }): Promise<void>;
   removeSms(options: { phoneNumber: string }): Promise<void>;
   getUser(): Promise<{ id: string | null; externalId: string | null }>;
+  getContacts(): Promise<{ emails: string[]; smsNumbers: string[] }>;
   getPreferences(): Promise<UserPreferences>;
   setPreferences(options: { preferences: PreferenceInput[] }): Promise<UserPreferences>;
 
@@ -198,7 +199,8 @@ export interface HeroSignalPlugin {
   getPermission(): Promise<{ permission: boolean }>;
   requestPermission(): Promise<{ permission: boolean }>;
   clearAll(): Promise<void>;
-  removeNotification(options: { id: number }): Promise<void>;
+  /** `id`: Android tepsi kimliği; `identifier`: iOS `UNNotificationRequest.identifier`. */
+  removeNotification(options: { id?: number; identifier?: string }): Promise<void>;
   removeGroupedNotifications(options: { group: string }): Promise<void>;
   setForegroundHandlerEnabled(options: { enabled: boolean }): Promise<void>;
   displayNotification(options: { notificationId: string }): Promise<void>;

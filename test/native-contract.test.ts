@@ -55,6 +55,19 @@ describe('native sözleşme', () => {
     expect(plugin).toContain('public let jsName = "HeroSignal"');
   });
 
+  it('bildirim kaldırma ve e-posta/SMS listeleri gerçek native SDK çağrılarına bağlı', () => {
+    expect(methods).toContain('getContacts');
+    const kt = read('android/src/main/java/com/herosignal/capacitor/HeroSignalBridgeCore.kt');
+    expect(kt).toContain('HeroSignal.Notifications.removeNotification(id)');
+    expect(kt).toContain('JSONArray(HeroSignal.User.emails)');
+    expect(kt).toContain('JSONArray(HeroSignal.User.smsNumbers)');
+    const swift = read('ios/Sources/HeroSignalPlugin/HeroSignalBridgeCore.swift');
+    expect(swift).toContain('HeroSignal.Notifications.removeNotification(identifier: identifier)');
+    expect(swift).toContain('HeroSignal.Notifications.removeGroupedNotifications(group)');
+    expect(swift).toContain('"emails": HeroSignal.User.emails, "smsNumbers": HeroSignal.User.smsNumbers');
+    expect(swift).not.toMatch(/case "removeNotification": ok\(\)/);
+  });
+
   it('package.json dosya listesi ve native paket tanımları tutarlı', () => {
     const pkg = JSON.parse(read('package.json')) as { files: string[] };
     for (const f of pkg.files.filter((x) => x !== 'dist/')) expect(existsSync(join(root, f)), f).toBe(true);
