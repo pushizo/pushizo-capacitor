@@ -2,6 +2,7 @@
 // modülü olarak eklenir (npx cap sync). Sürümler uygulamanın `variables.gradle` değerleriyle ezilebilir.
 ext {
     herosignalAndroidVersion = project.hasProperty('herosignalAndroidVersion') ? rootProject.ext.herosignalAndroidVersion : '0.1.0'
+    androidxAppCompatVersion = project.hasProperty('androidxAppCompatVersion') ? rootProject.ext.androidxAppCompatVersion : '1.6.1'
 }
 
 buildscript {
@@ -51,6 +52,8 @@ repositories {
 
 dependencies {
     implementation project(':capacitor-android')
+    // `Plugin.getActivity()` AppCompatActivity döndürür (konum izni açıklama diyaloğu); Capacitor eklenti şablonuyla aynı.
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     // Monorepo içinde uygulama settings.gradle'ında ":herosignal" modülü varsa kaynaktan,
     // yoksa yayınlanmış artefakttan (publishToMavenLocal / Maven Central) alınır.
     if (rootProject.findProject(':herosignal') != null) {

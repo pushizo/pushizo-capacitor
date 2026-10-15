@@ -61,6 +61,9 @@ public class HeroSignalPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "inboxUnreadCount", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setupDefaultLiveActivity", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "startDefaultLiveActivity", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setLocationShared", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "isLocationShared", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestLocationPermission", returnType: CAPPluginReturnPromise),
     ]
 
     private var core: HeroSignalBridgeCore!
@@ -151,4 +154,7 @@ public class HeroSignalPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func inboxUnreadCount(_ call: CAPPluginCall) { dispatch(call) }
     @objc func setupDefaultLiveActivity(_ call: CAPPluginCall) { dispatch(call) }
     @objc func startDefaultLiveActivity(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func setLocationShared(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func isLocationShared(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func requestLocationPermission(_ call: CAPPluginCall) { dispatch(call) }
 }

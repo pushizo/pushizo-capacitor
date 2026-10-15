@@ -19,7 +19,12 @@ import org.json.JSONObject
  */
 @CapacitorPlugin(
     name = "HeroSignal",
-    permissions = [Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = HeroSignalPlugin.PERMISSION_ALIAS)],
+    permissions = [
+        Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = HeroSignalPlugin.PERMISSION_ALIAS),
+        // Konum izinleri ayrı takma adlarla tanımlanır; yalnızca uygulama manifest'inde bulunanlar istenir.
+        Permission(strings = [Manifest.permission.ACCESS_COARSE_LOCATION], alias = HeroSignalPlugin.LOCATION_COARSE_ALIAS),
+        Permission(strings = [Manifest.permission.ACCESS_FINE_LOCATION], alias = HeroSignalPlugin.LOCATION_FINE_ALIAS),
+    ],
 )
 class HeroSignalPlugin : Plugin() {
     private lateinit var core: HeroSignalBridgeCore
@@ -36,16 +41,18 @@ class HeroSignalPlugin : Plugin() {
         super.handleOnDestroy()
     }
 
-    private fun dispatch(call: PluginCall) {
-        val handled = core.handle(call.methodName, call.data, object : HeroSignalBridgeCore.Reply {
-            override fun success(data: JSONObject?) {
-                if (data == null) call.resolve() else call.resolve(JSObject.fromJSONObject(data))
-            }
+    private fun reply(call: PluginCall) = object : HeroSignalBridgeCore.Reply {
+        override fun success(data: JSONObject?) {
+            if (data == null) call.resolve() else call.resolve(JSObject.fromJSONObject(data))
+        }
 
-            override fun error(code: String, message: String?) {
-                call.reject(message ?: code, code)
-            }
-        })
+        override fun error(code: String, message: String?) {
+            call.reject(message ?: code, code)
+        }
+    }
+
+    private fun dispatch(call: PluginCall) {
+        val handled = core.handle(call.methodName, call.data, reply(call))
         if (!handled) call.unimplemented("HeroSignal: ${call.methodName} desteklenmiyor")
     }
 
@@ -93,6 +100,8 @@ class HeroSignalPlugin : Plugin() {
     @PluginMethod fun inboxUnreadCount(call: PluginCall) = dispatch(call)
     @PluginMethod fun setupDefaultLiveActivity(call: PluginCall) = dispatch(call)
     @PluginMethod fun startDefaultLiveActivity(call: PluginCall) = dispatch(call)
+    @PluginMethod fun setLocationShared(call: PluginCall) = dispatch(call)
+    @PluginMethod fun isLocationShared(call: PluginCall) = dispatch(call)
 
     /** Android 13+ POST_NOTIFICATIONS istemi; önceki sürümlerde çalışma zamanı izni yoktur, mevcut durum döner. */
     @PluginMethod
@@ -111,7 +120,26 @@ class HeroSignalPlugin : Plugin() {
         call.resolve(JSObject.fromJSONObject(core.permissionJson()))
     }
 
+    /**
+     * Konum izni (v2 Faz 17b): açıklama diyaloğu ve manifest denetimi [HeroSignalBridgeCore] içindedir; sistem izni
+     * Capacitor izin API'siyle (istek kodu yerine `@PermissionCallback`) istenir.
+     */
+    @PluginMethod
+    fun requestLocationPermission(call: PluginCall) {
+        core.requestLocationPermission(activity, call.data, reply(call)) { permissions ->
+            val aliases = permissions.map { if (it == Manifest.permission.ACCESS_FINE_LOCATION) LOCATION_FINE_ALIAS else LOCATION_COARSE_ALIAS }
+            requestPermissionForAliases(aliases.toTypedArray(), call, "onLocationPermission")
+        }
+    }
+
+    @PermissionCallback
+    private fun onLocationPermission(call: PluginCall) {
+        call.resolve(JSObject.fromJSONObject(core.onLocationPermissionResult()))
+    }
+
     companion object {
         const val PERMISSION_ALIAS = "notifications"
+        const val LOCATION_COARSE_ALIAS = "locationCoarse"
+        const val LOCATION_FINE_ALIAS = "locationFine"
     }
 }

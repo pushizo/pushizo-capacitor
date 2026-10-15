@@ -239,6 +239,11 @@ export interface HeroSignalPlugin {
   inboxArchive(options: { id: string }): Promise<void>;
   inboxUnreadCount(): Promise<{ unreadCount: number }>;
 
+  /** Konum paylaşımı (v2 Faz 17b); web'de `@herosignal/web` `Location` yüzeyine iletilir. */
+  setLocationShared(options: { shared: boolean }): Promise<void>;
+  isLocationShared(): Promise<{ shared: boolean }>;
+  requestLocationPermission(options: { rationale?: string }): Promise<{ permission: boolean }>;
+
   /** Yalnızca iOS 16.1+; Android ve web `PLATFORM_NOT_SUPPORTED` ile reddeder. */
   setupDefaultLiveActivity(): Promise<void>;
   startDefaultLiveActivity(options: {
