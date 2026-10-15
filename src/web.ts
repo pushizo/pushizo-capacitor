@@ -1,5 +1,5 @@
 /*
- * Web platformu: `@herosignal/web` SDK'sına devreder (Web Push + service worker). Native'e özgü
+ * Web platformu: `@herosignal/web` SDK'sına devreder (Web Push + service worker, konum). Native'e özgü
  * işlemler (Android tepsi kimliği ile kaldırma, engellenmiş bildirimi sonradan gösterme) web'de
  * `unavailable` hatası verir.
  */
@@ -423,6 +423,20 @@ export class HeroSignalWeb extends WebPlugin implements HeroSignalPlugin {
 
   async inboxUnreadCount(): Promise<{ unreadCount: number }> {
     return { unreadCount: await this.sdk.Inbox.unreadCount() };
+  }
+
+  /** Konum paylaşımı Web SDK'ya iletilir (`init` öncesinde Web SDK hata fırlatır). */
+  async setLocationShared(options: { shared: boolean }): Promise<void> {
+    this.sdk.Location.setShared(options.shared === true);
+  }
+
+  async isLocationShared(): Promise<{ shared: boolean }> {
+    return { shared: this.sdk.Location.isShared };
+  }
+
+  /** Tarayıcı Geolocation izni; Web SDK önce açıklama kutusunu gösterir, vazgeçilirse tarayıcı istemi açılmaz. */
+  async requestLocationPermission(options: { rationale?: string }): Promise<{ permission: boolean }> {
+    return { permission: await this.sdk.Location.requestPermission(options.rationale) };
   }
 
   /** Live Activities bir iOS (ActivityKit) özelliğidir; web'de sessizce yok sayılmaz, açık hatayla reddedilir. */

@@ -10,6 +10,7 @@ type Fn = (...args: never[]) => unknown;
 function fakeWebSdk() {
   const listeners: Record<string, Fn> = {};
   let permission = 'default';
+  let locationShared = false;
   const sdk = {
     init: vi.fn(async () => undefined),
     setConsentGiven: vi.fn(async () => undefined),
@@ -106,6 +107,15 @@ function fakeWebSdk() {
       unreadCount: vi.fn(async () => 4),
     },
     Debug: { setLogLevel: vi.fn() },
+    Location: {
+      setShared: vi.fn((shared: boolean) => {
+        locationShared = shared;
+      }),
+      get isShared() {
+        return locationShared;
+      },
+      requestPermission: vi.fn(async (_rationale?: string) => true),
+    },
   };
   return { sdk, listeners, web: new HeroSignalWeb(sdk as unknown as WebSdkInstance) };
 }
@@ -180,6 +190,34 @@ describe('HeroSignalWeb', () => {
     await expect(hs.LiveActivities.startDefaultLiveActivity('order_42', { title: 'Sipariş #42' }, { status: 'Yolda' })).rejects.toMatchObject(
       expected,
     );
+  });
+
+  it('Location: paylaşım, okuma ve izin isteği Web SDK Location yüzeyine iletilir', async () => {
+    const { sdk, web } = fakeWebSdk();
+    const hs = coreFor(web);
+    await hs.initialize('app_1');
+    expect(await hs.Location.isShared()).toBe(false);
+    await hs.Location.setShared(true);
+    expect(sdk.Location.setShared).toHaveBeenLastCalledWith(true);
+    expect(await hs.Location.isShared()).toBe(true);
+    await hs.Location.setShared(false);
+    expect(sdk.Location.setShared).toHaveBeenLastCalledWith(false);
+    expect(await hs.Location.requestPermission('Yakındaki mağazalar için')).toBe(true);
+    expect(sdk.Location.requestPermission).toHaveBeenLastCalledWith('Yakındaki mağazalar için');
+    sdk.Location.requestPermission.mockResolvedValueOnce(false);
+    expect(await hs.Location.requestPermission()).toBe(false);
+    expect(sdk.Location.requestPermission).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it('Location: Web SDK hatası (init öncesi) cepheye ret olarak ulaşır', async () => {
+    const { sdk, web } = fakeWebSdk();
+    sdk.Location.setShared.mockImplementationOnce(() => {
+      throw new Error('HeroSignal.init önce çağrılmalı.');
+    });
+    sdk.Location.requestPermission.mockRejectedValueOnce(new Error('HeroSignal.init önce çağrılmalı.'));
+    const hs = coreFor(web);
+    await expect(hs.Location.setShared(true)).rejects.toThrow(/init önce/);
+    await expect(hs.Location.requestPermission()).rejects.toThrow(/init önce/);
   });
 
   it('izin isteği sonucu izin gözlemcisine bir kez bildirilir', async () => {

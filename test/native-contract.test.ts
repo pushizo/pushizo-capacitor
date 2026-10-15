@@ -21,7 +21,7 @@ function pluginMethods(): string[] {
 
 describe('native sözleşme', () => {
   const methods = pluginMethods();
-  const adapterHandled = new Set(['requestPermission']);
+  const adapterHandled = new Set(['requestPermission', 'requestLocationPermission']);
 
   it('cephenin çağırdığı her metot eklenti arayüzünde var', () => {
     const core = read('src/core.ts');
@@ -95,6 +95,37 @@ describe('native sözleşme', () => {
     expect(kt).toContain('"startDefaultLiveActivity" -> reply.error(PLATFORM_NOT_SUPPORTED, LIVE_ACTIVITIES_IOS_ONLY)');
     expect(kt).toContain('const val PLATFORM_NOT_SUPPORTED = "PLATFORM_NOT_SUPPORTED"');
     expect(kt).toContain('const val LIVE_ACTIVITIES_IOS_ONLY = "Live Activities yalnızca iOS\'ta desteklenir"');
+  });
+
+  it('Konum: native SDK Location çağrılarına bağlı; Android izni manifest, açıklama ve Capacitor izin API akışıyla ister', () => {
+    expect(methods).toEqual(expect.arrayContaining(['setLocationShared', 'isLocationShared', 'requestLocationPermission']));
+    const kt = read('android/src/main/java/com/herosignal/capacitor/HeroSignalBridgeCore.kt');
+    expect(kt).toContain('HeroSignal.Location.setShared(args.optBoolean("shared", false))');
+    expect(kt).toContain('"isLocationShared" -> reply.success(JSONObject().put("shared", HeroSignal.Location.isShared))');
+    expect(kt).toContain('JSONObject().put("permission", HeroSignal.Location.permissionGranted)');
+    expect(kt).toContain('HeroSignal.Location.onPermissionResult()');
+    // Yalnızca uygulama manifest'inde tanımlı konum izinleri istenir; arka plan konumu yok.
+    expect(kt).toContain('PackageManager.GET_PERMISSIONS');
+    expect(kt).toContain('arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)');
+    expect(kt).not.toContain('ACCESS_BACKGROUND_LOCATION');
+    // Açıklama diyaloğu SDK string kaynaklarıyla; "Şimdi değil"/iptal false döner.
+    for (const key of ['title', 'message', 'continue', 'not_now']) {
+      expect(kt).toContain(`com.herosignal.sdk.R.string.hs_location_rationale_${key}`);
+    }
+    expect(kt).toContain('.setOnCancelListener { reply.success(locationPermissionJson()) }');
+    const plugin = read('android/src/main/java/com/herosignal/capacitor/HeroSignalPlugin.kt');
+    expect(plugin).toContain('Permission(strings = [Manifest.permission.ACCESS_COARSE_LOCATION], alias = HeroSignalPlugin.LOCATION_COARSE_ALIAS)');
+    expect(plugin).toContain('Permission(strings = [Manifest.permission.ACCESS_FINE_LOCATION], alias = HeroSignalPlugin.LOCATION_FINE_ALIAS)');
+    expect(plugin).toContain('core.requestLocationPermission(activity, call.data, reply(call))');
+    expect(plugin).toContain('requestPermissionForAliases(aliases.toTypedArray(), call, "onLocationPermission")');
+    expect(plugin).toMatch(/@PermissionCallback\s+private fun onLocationPermission\(call: PluginCall\)/);
+    expect(plugin).toContain('call.resolve(JSObject.fromJSONObject(core.onLocationPermissionResult()))');
+    // Eklenti konum iznini manifest'e otomatik eklemez (README "Konum").
+    expect(read('android/src/main/AndroidManifest.xml')).not.toMatch(/ACCESS_(COARSE|FINE|BACKGROUND)_LOCATION/);
+    const swift = read('ios/Sources/HeroSignalPlugin/HeroSignalBridgeCore.swift');
+    expect(swift).toContain('HeroSignal.Location.setShared(args["shared"] as? Bool ?? false)');
+    expect(swift).toContain('case "isLocationShared": ok(["shared": HeroSignal.Location.isShared])');
+    expect(swift).toContain('HeroSignal.Location.requestPermission(rationale: string("rationale")) { granted in ok(["permission": granted]) }');
   });
 
   it('package.json dosya listesi ve native paket tanımları tutarlı', () => {
