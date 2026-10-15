@@ -68,6 +68,35 @@ describe('native sözleşme', () => {
     expect(swift).not.toMatch(/case "removeNotification": ok\(\)/);
   });
 
+  it('JWT identity verification native SDK çağrılarına iletilir', () => {
+    expect(methods).toEqual(expect.arrayContaining(['login', 'updateUserJwt']));
+    const kt = read('android/src/main/java/com/herosignal/capacitor/HeroSignalBridgeCore.kt');
+    expect(kt).toContain('HeroSignal.login(args.requireString("externalId"), args.optStringOrNull("identityHash"), args.optStringOrNull("jwt"))');
+    expect(kt).toContain('HeroSignal.updateUserJwt(args.requireString("jwt"))');
+    const swift = read('ios/Sources/HeroSignalPlugin/HeroSignalBridgeCore.swift');
+    expect(swift).toContain('HeroSignal.login(externalId, identityHash: identityHash, jwt: jwt)');
+    expect(swift).toContain('try HeroSignal.updateUserJwt(jwt)');
+  });
+
+  it('Live Activities: iOS native SDK çağrılarına bağlı, Android PLATFORM_NOT_SUPPORTED ile reddeder', () => {
+    expect(methods).toEqual(expect.arrayContaining(['setupDefaultLiveActivity', 'startDefaultLiveActivity']));
+    const swift = read('ios/Sources/HeroSignalPlugin/HeroSignalBridgeCore.swift');
+    expect(swift).toContain('try HeroSignal.LiveActivities.setupDefaultLiveActivity()');
+    expect(swift).toContain(
+      'try HeroSignal.LiveActivities.startDefaultLiveActivity(activityId: activityId, attributes: attributes, contentState: contentState)',
+    );
+    // SDK hata kodu (PLATFORM_NOT_SUPPORTED / NOT_READY / INVALID_ARGUMENT / LIVE_ACTIVITY_FAILED) aynen iletilir.
+    expect(swift).toContain('catch let error as HSLiveActivityError');
+    expect(swift).toContain('reply(.failure(code: error.code, message: error.message))');
+    expect(swift).toContain('reply(.failure(code: "LIVE_ACTIVITY_FAILED", message: error.localizedDescription))');
+
+    const kt = read('android/src/main/java/com/herosignal/capacitor/HeroSignalBridgeCore.kt');
+    expect(kt).toContain('"setupDefaultLiveActivity" -> reply.error(PLATFORM_NOT_SUPPORTED, LIVE_ACTIVITIES_IOS_ONLY)');
+    expect(kt).toContain('"startDefaultLiveActivity" -> reply.error(PLATFORM_NOT_SUPPORTED, LIVE_ACTIVITIES_IOS_ONLY)');
+    expect(kt).toContain('const val PLATFORM_NOT_SUPPORTED = "PLATFORM_NOT_SUPPORTED"');
+    expect(kt).toContain('const val LIVE_ACTIVITIES_IOS_ONLY = "Live Activities yalnızca iOS\'ta desteklenir"');
+  });
+
   it('package.json dosya listesi ve native paket tanımları tutarlı', () => {
     const pkg = JSON.parse(read('package.json')) as { files: string[] };
     for (const f of pkg.files.filter((x) => x !== 'dist/')) expect(existsSync(join(root, f)), f).toBe(true);

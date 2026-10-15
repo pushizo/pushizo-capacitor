@@ -19,6 +19,7 @@ public class HeroSignalPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "initialize", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setConsentGiven", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "login", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "updateUserJwt", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "logout", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "addTags", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "removeTags", returnType: CAPPluginReturnPromise),
@@ -58,6 +59,8 @@ public class HeroSignalPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "inboxMarkAllRead", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "inboxArchive", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "inboxUnreadCount", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setupDefaultLiveActivity", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "startDefaultLiveActivity", returnType: CAPPluginReturnPromise),
     ]
 
     private var core: HeroSignalBridgeCore!
@@ -106,6 +109,7 @@ public class HeroSignalPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc(initialize:) func initializeSdk(_ call: CAPPluginCall) { dispatch(call) }
     @objc func setConsentGiven(_ call: CAPPluginCall) { dispatch(call) }
     @objc func login(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func updateUserJwt(_ call: CAPPluginCall) { dispatch(call) }
     @objc func logout(_ call: CAPPluginCall) { dispatch(call) }
     @objc func addTags(_ call: CAPPluginCall) { dispatch(call) }
     @objc func removeTags(_ call: CAPPluginCall) { dispatch(call) }
@@ -145,4 +149,6 @@ public class HeroSignalPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func inboxMarkAllRead(_ call: CAPPluginCall) { dispatch(call) }
     @objc func inboxArchive(_ call: CAPPluginCall) { dispatch(call) }
     @objc func inboxUnreadCount(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func setupDefaultLiveActivity(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func startDefaultLiveActivity(_ call: CAPPluginCall) { dispatch(call) }
 }

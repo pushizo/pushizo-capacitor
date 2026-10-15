@@ -21,6 +21,16 @@ export interface InitializeOptions {
   };
 }
 
+/**
+ * `HeroSignal.login` kimlik kanıtı (ADR-0023 §9). App'in `identity_verification_mode` ayarına göre HMAC
+ * `identityHash` ve/veya sunucunuzda imzalanmış ES256 `jwt` (`sub` = externalId, `aud` = appId) verilir.
+ */
+export interface LoginOptions {
+  identityHash?: string;
+  /** SDK isteklerinde `Authorization: Bearer` başlığıyla gider; süresi dolunca `updateUserJwt` ile yenilenir. */
+  jwt?: string;
+}
+
 /** Bildirim içeriği (native `HsNotification` / `HSNotification`). */
 export interface HeroSignalNotification {
   title: string | null;
@@ -153,6 +163,12 @@ export interface PreferenceInput {
 
 export type InAppTriggerValue = string | number | boolean;
 
+/**
+ * iOS Live Activity alan değeri (`HeroSignalDefaultLiveActivityAttributes.data` / `ContentState.data`): metin, sonlu
+ * sayı veya mantıksal değer.
+ */
+export type LiveActivityValue = string | number | boolean;
+
 /** Native katmanın gönderdiği ham ön plan olayı. */
 export interface RawForegroundEvent {
   /** Erteleme kimliği; `displayNotification` ile kullanılır. */
@@ -174,7 +190,8 @@ export interface RawInAppLifecycleEvent {
 export interface HeroSignalPlugin {
   initialize(options: InitializeOptions): Promise<void>;
   setConsentGiven(options: { given: boolean }): Promise<void>;
-  login(options: { externalId: string; identityHash?: string }): Promise<void>;
+  login(options: { externalId: string; identityHash?: string; jwt?: string }): Promise<void>;
+  updateUserJwt(options: { jwt: string }): Promise<void>;
   logout(): Promise<void>;
 
   addTags(options: { tags: Record<string, string> }): Promise<void>;
@@ -221,6 +238,14 @@ export interface HeroSignalPlugin {
   inboxMarkAllRead(): Promise<{ unreadCount: number }>;
   inboxArchive(options: { id: string }): Promise<void>;
   inboxUnreadCount(): Promise<{ unreadCount: number }>;
+
+  /** Yalnızca iOS 16.1+; Android ve web `PLATFORM_NOT_SUPPORTED` ile reddeder. */
+  setupDefaultLiveActivity(): Promise<void>;
+  startDefaultLiveActivity(options: {
+    activityId: string;
+    attributes: Record<string, LiveActivityValue>;
+    contentState: Record<string, LiveActivityValue>;
+  }): Promise<void>;
 
   addListener(eventName: 'click', listener: (event: NotificationClickEvent) => void): Promise<PluginListenerHandle>;
   addListener(eventName: 'foregroundWillDisplay', listener: (event: RawForegroundEvent) => void): Promise<PluginListenerHandle>;
