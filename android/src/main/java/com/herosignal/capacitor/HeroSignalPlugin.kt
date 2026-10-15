@@ -52,6 +52,7 @@ class HeroSignalPlugin : Plugin() {
     @PluginMethod fun initialize(call: PluginCall) = dispatch(call)
     @PluginMethod fun setConsentGiven(call: PluginCall) = dispatch(call)
     @PluginMethod fun login(call: PluginCall) = dispatch(call)
+    @PluginMethod fun updateUserJwt(call: PluginCall) = dispatch(call)
     @PluginMethod fun logout(call: PluginCall) = dispatch(call)
     @PluginMethod fun addTags(call: PluginCall) = dispatch(call)
     @PluginMethod fun removeTags(call: PluginCall) = dispatch(call)
@@ -90,6 +91,8 @@ class HeroSignalPlugin : Plugin() {
     @PluginMethod fun inboxMarkAllRead(call: PluginCall) = dispatch(call)
     @PluginMethod fun inboxArchive(call: PluginCall) = dispatch(call)
     @PluginMethod fun inboxUnreadCount(call: PluginCall) = dispatch(call)
+    @PluginMethod fun setupDefaultLiveActivity(call: PluginCall) = dispatch(call)
+    @PluginMethod fun startDefaultLiveActivity(call: PluginCall) = dispatch(call)
 
     /** Android 13+ POST_NOTIFICATIONS istemi; önceki sürümlerde çalışma zamanı izni yoktur, mevcut durum döner. */
     @PluginMethod

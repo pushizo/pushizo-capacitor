@@ -166,7 +166,19 @@ final class HeroSignalBridgeCore: NSObject {
         case "setConsentGiven": HeroSignal.setConsentGiven(args["given"] as? Bool ?? false); ok()
         case "login":
             guard let externalId = string("externalId") else { invalid("externalId gerekli"); return true }
-            HeroSignal.login(externalId, identityHash: string("identityHash")); ok()
+            let identityHash = string("identityHash"), jwt = string("jwt")
+            // Kanıt app kipine uymuyorsa Android köprüsündeki gibi reddedilir (yerel SDK yalnızca loglar).
+            if let message = HeroSignal.loginProofError(identityHash: identityHash, jwt: jwt) {
+                reply(.failure(code: "NOT_READY", message: message)); return true
+            }
+            HeroSignal.login(externalId, identityHash: identityHash, jwt: jwt); ok()
+        case "updateUserJwt":
+            guard let jwt = string("jwt") else { invalid("jwt gerekli"); return true }
+            do {
+                try HeroSignal.updateUserJwt(jwt); ok()
+            } catch {
+                reply(.failure(code: "NOT_READY", message: "Önce login ile kullanıcı kimliklendirilmeli"))
+            }
         case "logout": HeroSignal.logout(); ok()
 
         case "addTags": HeroSignal.User.addTags(stringMap("tags")); ok()
@@ -268,6 +280,18 @@ final class HeroSignalBridgeCore: NSObject {
             inbox(reply) { try await HeroSignal.Inbox.archive(id); return nil }
         case "inboxUnreadCount":
             inbox(reply) { ["unreadCount": try await HeroSignal.Inbox.unreadCount()] }
+
+        // Live Activities (ADR-0024; iOS 16.1+): genel `HeroSignalDefaultLiveActivityAttributes` türü kullanılır.
+        case "setupDefaultLiveActivity":
+            liveActivity(reply) { try HeroSignal.LiveActivities.setupDefaultLiveActivity() }
+        case "startDefaultLiveActivity":
+            guard let activityId = string("activityId") else { invalid("activityId gerekli"); return true }
+            guard let attributes = Self.plainObject(args["attributes"]), let contentState = Self.plainObject(args["contentState"]) else {
+                invalid("attributes ve contentState nesne olmalı"); return true
+            }
+            liveActivity(reply) {
+                try HeroSignal.LiveActivities.startDefaultLiveActivity(activityId: activityId, attributes: attributes, contentState: contentState)
+            }
         default:
             return false
         }
@@ -296,7 +320,29 @@ final class HeroSignalBridgeCore: NSObject {
         }
     }
 
+    /// Live Activities çağrısı ana iş parçacığında (ActivityKit) yapılır; `HSLiveActivityError.code`/`message` köprü
+    /// hatası olarak aynen iletilir, diğer hatalar `LIVE_ACTIVITY_FAILED` olur.
+    private func liveActivity(_ reply: @escaping (HeroSignalBridgeResult) -> Void, _ body: @escaping () throws -> Void) {
+        let run: () -> Void = {
+            do {
+                try body()
+                reply(.success(nil))
+            } catch let error as HSLiveActivityError {
+                reply(.failure(code: error.code, message: error.message))
+            } catch {
+                reply(.failure(code: "LIVE_ACTIVITY_FAILED", message: error.localizedDescription))
+            }
+        }
+        if Thread.isMainThread { run() } else { DispatchQueue.main.async(execute: run) }
+    }
+
     // MARK: Eşleme
+
+    /// Köprüden gelen düz nesne: alan yoksa veya `null` ise boş sözlük, nesne değilse nil.
+    static func plainObject(_ raw: Any?) -> [String: Any]? {
+        guard let raw, !(raw is NSNull) else { return [:] }
+        return raw as? [String: Any]
+    }
 
     static func logLevel(_ name: String?) -> HSLog.Level {
         switch name {

@@ -22,6 +22,7 @@ import type {
   InboxListOptions,
   InboxPage,
   InitializeOptions,
+  LiveActivityValue,
   LogLevel,
   PreferenceInput,
   PushSubscriptionState,
@@ -116,6 +117,9 @@ function mapPreferences(result: WebUserPreferences): UserPreferences {
 function codedError(code: string, message: string): Error {
   return Object.assign(new Error(message), { code });
 }
+
+/** Android köprüsüyle aynı ret mesajı (`PLATFORM_NOT_SUPPORTED`). */
+const LIVE_ACTIVITIES_IOS_ONLY = "Live Activities yalnızca iOS'ta desteklenir";
 
 /**
  * Kuyruğa alınan yazma sunucuya ulaştığında `PUT /preferences` yanıtının içereceği listeyi üretir (sunucuyla aynı kural):
@@ -223,8 +227,12 @@ export class HeroSignalWeb extends WebPlugin implements HeroSignalPlugin {
     await this.sdk.setConsentGiven(options.given);
   }
 
-  async login(options: { externalId: string; identityHash?: string }): Promise<void> {
-    await this.sdk.login(options.externalId, options.identityHash);
+  async login(options: { externalId: string; identityHash?: string; jwt?: string }): Promise<void> {
+    await this.sdk.login(options.externalId, { identityHash: options.identityHash, jwt: options.jwt });
+  }
+
+  async updateUserJwt(options: { jwt: string }): Promise<void> {
+    await this.sdk.updateUserJwt(options.jwt);
   }
 
   async logout(): Promise<void> {
@@ -415,5 +423,18 @@ export class HeroSignalWeb extends WebPlugin implements HeroSignalPlugin {
 
   async inboxUnreadCount(): Promise<{ unreadCount: number }> {
     return { unreadCount: await this.sdk.Inbox.unreadCount() };
+  }
+
+  /** Live Activities bir iOS (ActivityKit) özelliğidir; web'de sessizce yok sayılmaz, açık hatayla reddedilir. */
+  async setupDefaultLiveActivity(): Promise<void> {
+    throw codedError('PLATFORM_NOT_SUPPORTED', LIVE_ACTIVITIES_IOS_ONLY);
+  }
+
+  async startDefaultLiveActivity(_options: {
+    activityId: string;
+    attributes: Record<string, LiveActivityValue>;
+    contentState: Record<string, LiveActivityValue>;
+  }): Promise<void> {
+    throw codedError('PLATFORM_NOT_SUPPORTED', LIVE_ACTIVITIES_IOS_ONLY);
   }
 }

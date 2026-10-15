@@ -14,6 +14,7 @@ function fakeWebSdk() {
     init: vi.fn(async () => undefined),
     setConsentGiven: vi.fn(async () => undefined),
     login: vi.fn(async () => undefined),
+    updateUserJwt: vi.fn(async () => undefined),
     logout: vi.fn(async () => undefined),
     User: {
       addTags: vi.fn(),
@@ -145,7 +146,7 @@ describe('HeroSignalWeb', () => {
     await hs.InAppMessages.setScreen(null);
     await hs.InAppMessages.setPaused(true);
     await hs.Session.sendEvent('purchase', { sku: 'A' }, 10);
-    expect(sdk.login).toHaveBeenCalledWith('ext_1', 'hash');
+    expect(sdk.login).toHaveBeenCalledWith('ext_1', { identityHash: 'hash', jwt: undefined });
     expect(sdk.User.addTags).toHaveBeenCalledWith({ plan: 'pro' });
     expect(sdk.User.addEmail).toHaveBeenCalledWith('ali@example.com');
     expect(sdk.InAppMessages.addTriggers).toHaveBeenCalledWith({ level: '3' });
@@ -158,6 +159,27 @@ describe('HeroSignalWeb', () => {
       id: 'sub_1', token: 'https://push.example/ep', optedIn: true, permission: true,
     });
     expect(await hs.Notifications.getPermission()).toBe(false);
+  });
+
+  it('JWT identity verification web SDK login seçeneklerine ve updateUserJwt çağrısına iletilir', async () => {
+    const { sdk, web } = fakeWebSdk();
+    const hs = coreFor(web);
+    await hs.initialize('app_1');
+    await hs.login('ext_1', { jwt: 'a.b.c' });
+    await hs.updateUserJwt('d.e.f');
+    expect(sdk.login).toHaveBeenCalledWith('ext_1', { identityHash: undefined, jwt: 'a.b.c' });
+    expect(sdk.updateUserJwt).toHaveBeenCalledWith('d.e.f');
+  });
+
+  it('Live Activities web\'de PLATFORM_NOT_SUPPORTED ile reddedilir', async () => {
+    const { web } = fakeWebSdk();
+    const hs = coreFor(web);
+    await hs.initialize('app_1');
+    const expected = { code: 'PLATFORM_NOT_SUPPORTED', message: "Live Activities yalnızca iOS'ta desteklenir" };
+    await expect(hs.LiveActivities.setupDefaultLiveActivity()).rejects.toMatchObject(expected);
+    await expect(hs.LiveActivities.startDefaultLiveActivity('order_42', { title: 'Sipariş #42' }, { status: 'Yolda' })).rejects.toMatchObject(
+      expected,
+    );
   });
 
   it('izin isteği sonucu izin gözlemcisine bir kez bildirilir', async () => {

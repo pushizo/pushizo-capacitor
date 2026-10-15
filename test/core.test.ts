@@ -69,6 +69,61 @@ describe('HeroSignalCore', () => {
     ]);
   });
 
+  it('JWT identity verification: login seçenekleri ve updateUserJwt köprüye iletilir', async () => {
+    const f = fakeBridge();
+    const hs = new HeroSignalCore(f.bridge);
+    await hs.login('user_1', { jwt: 'a.b.c' });
+    await hs.login('user_2', { identityHash: 'hash', jwt: 'a.b.c' });
+    await hs.updateUserJwt('d.e.f');
+    expect(f.calls).toEqual([
+      { method: 'login', args: { externalId: 'user_1', jwt: 'a.b.c' } },
+      { method: 'login', args: { externalId: 'user_2', identityHash: 'hash', jwt: 'a.b.c' } },
+      { method: 'updateUserJwt', args: { jwt: 'd.e.f' } },
+    ]);
+    expect(() => hs.login('user_1', { jwt: ' ' })).toThrow(TypeError);
+    expect(() => hs.updateUserJwt('')).toThrow(TypeError);
+  });
+
+  it('LiveActivities: kurulum ve yerel başlatma argümanları köprüye iletilir', async () => {
+    const f = fakeBridge();
+    const hs = new HeroSignalCore(f.bridge);
+    await hs.LiveActivities.setupDefaultLiveActivity();
+    await hs.LiveActivities.startDefaultLiveActivity('order_42', { title: 'Sipariş #42' }, { status: 'Yolda', eta: 12, late: false });
+    await hs.LiveActivities.startDefaultLiveActivity('ns:order.1-a', {}, { herosignal: 'contentState içinde serbest' });
+    expect(f.calls).toEqual([
+      { method: 'setupDefaultLiveActivity', args: undefined },
+      {
+        method: 'startDefaultLiveActivity',
+        args: { activityId: 'order_42', attributes: { title: 'Sipariş #42' }, contentState: { status: 'Yolda', eta: 12, late: false } },
+      },
+      {
+        method: 'startDefaultLiveActivity',
+        args: { activityId: 'ns:order.1-a', attributes: {}, contentState: { herosignal: 'contentState içinde serbest' } },
+      },
+    ]);
+  });
+
+  it('LiveActivities: geçersiz kimlik, nesne, anahtar ve değerler köprüye gitmeden reddedilir', () => {
+    const f = fakeBridge();
+    const start = new HeroSignalCore(f.bridge).LiveActivities.startDefaultLiveActivity;
+    expect(() => start('', {}, {})).toThrow(/activityId/);
+    expect(() => start('a'.repeat(101), {}, {})).toThrow(/activityId/);
+    expect(() => start('sipariş 42', {}, {})).toThrow(/activityId/);
+    expect(() => start(42 as never, {}, {})).toThrow(TypeError);
+    expect(() => start('order_42', null as never, {})).toThrow(/attributes düz bir nesne/);
+    expect(() => start('order_42', [] as never, {})).toThrow(/attributes düz bir nesne/);
+    expect(() => start('order_42', new Date() as never, {})).toThrow(/attributes düz bir nesne/);
+    expect(() => start('order_42', {}, 'durum' as never)).toThrow(/contentState düz bir nesne/);
+    expect(() => start('order_42', { herosignal: 'x' }, {})).toThrow(/'herosignal' anahtarı ayrılmıştır/);
+    expect(() => start('order_42', { ['k'.repeat(65)]: 'x' }, {})).toThrow(/1-64/);
+    expect(() => start('order_42', { '': 'x' }, {})).toThrow(/1-64/);
+    expect(() => start('order_42', {}, { eta: Number.NaN })).toThrow(/contentState\.eta/);
+    expect(() => start('order_42', {}, { eta: Infinity })).toThrow(/contentState\.eta/);
+    expect(() => start('order_42', {}, { nested: { a: 1 } } as never)).toThrow(/contentState\.nested/);
+    expect(() => start('order_42', { note: null } as never, {})).toThrow(/attributes\.note/);
+    expect(f.calls).toEqual([]);
+  });
+
   it('tag/tetik değerleri metne çevrilir, null değerler atlanır, nesne reddedilir', async () => {
     const f = fakeBridge({ getTags: { tags: { plan: 'pro' } }, getTriggers: { triggers: { level: '3' } } });
     const hs = new HeroSignalCore(f.bridge);
