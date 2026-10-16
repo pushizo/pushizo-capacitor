@@ -258,7 +258,7 @@ func application(_ application: UIApplication, didFailToRegisterForRemoteNotific
 }
 ```
 
-4. CocoaPods: `Pushizo` pod'u yayınlanana kadar `ios/App/Podfile` içine `pod 'Pushizo', :path => '<repo>/sdk/ios'` ekleyin. SPM (Capacitor 7): paket `https://github.com/exec0de/pushizo-ios.git` deposundan çözülür.
+4. CocoaPods: `ios/App/Podfile` içine `pod 'Pushizo'` ekleyin (CocoaPods trunk). SPM (Capacitor 7): paket `https://github.com/exec0de/pushizo-ios.git` deposundan çözülür.
 
 Pushizo SDK'sı `UNUserNotificationCenter` delegesini üstlenir (ön plan gösterimi ve tıklama). Aynı uygulamada `@capacitor/push-notifications` kullanmayın.
 
@@ -271,7 +271,7 @@ Resimli bildirimler, rozet artışı ve uygulama kapalıyken `received` bildirim
 
 ```ruby
 target 'PushizoNSE' do
-  pod 'Pushizo/Extension', :path => '<repo>/sdk/ios'
+  pod 'Pushizo/Extension'
 end
 ```
 
