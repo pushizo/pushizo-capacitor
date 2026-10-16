@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { capacitorBridge, HeroSignalCore } from '../src/index';
-import { HeroSignalWeb } from '../src/web';
+import { capacitorBridge, PushizoCore } from '../src/index';
+import { PushizoWeb } from '../src/web';
 import type { WebSdkInstance } from '../src/web';
 
 type Fn = (...args: never[]) => unknown;
 
-/** `@herosignal/web` örneğinin sahte karşılığı; dinleyiciler dışarıdan tetiklenebilir. */
+/** `@pushizo/web` örneğinin sahte karşılığı; dinleyiciler dışarıdan tetiklenebilir. */
 function fakeWebSdk() {
   const listeners: Record<string, Fn> = {};
   let permission = 'default';
@@ -117,15 +117,15 @@ function fakeWebSdk() {
       requestPermission: vi.fn(async (_rationale?: string) => true),
     },
   };
-  return { sdk, listeners, web: new HeroSignalWeb(sdk as unknown as WebSdkInstance) };
+  return { sdk, listeners, web: new PushizoWeb(sdk as unknown as WebSdkInstance) };
 }
 
 /** WebPlugin'i doğrudan cepheye bağlar (Capacitor proxy'si olmadan). */
-function coreFor(web: HeroSignalWeb) {
-  return new HeroSignalCore(capacitorBridge(web));
+function coreFor(web: PushizoWeb) {
+  return new PushizoCore(capacitorBridge(web));
 }
 
-describe('HeroSignalWeb', () => {
+describe('PushizoWeb', () => {
   it('initialize web SDK seçeneklerini eşler (none → silent)', async () => {
     const { sdk, web } = fakeWebSdk();
     await coreFor(web).initialize('app_1', {
@@ -212,9 +212,9 @@ describe('HeroSignalWeb', () => {
   it('Location: Web SDK hatası (init öncesi) cepheye ret olarak ulaşır', async () => {
     const { sdk, web } = fakeWebSdk();
     sdk.Location.setShared.mockImplementationOnce(() => {
-      throw new Error('HeroSignal.init önce çağrılmalı.');
+      throw new Error('Pushizo.init önce çağrılmalı.');
     });
-    sdk.Location.requestPermission.mockRejectedValueOnce(new Error('HeroSignal.init önce çağrılmalı.'));
+    sdk.Location.requestPermission.mockRejectedValueOnce(new Error('Pushizo.init önce çağrılmalı.'));
     const hs = coreFor(web);
     await expect(hs.Location.setShared(true)).rejects.toThrow(/init önce/);
     await expect(hs.Location.requestPermission()).rejects.toThrow(/init önce/);

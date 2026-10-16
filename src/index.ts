@@ -1,12 +1,12 @@
 import { registerPlugin } from '@capacitor/core';
 
-import { HeroSignalCore } from './core.js';
+import { PushizoCore } from './core.js';
 import type { Bridge, BridgeEventType } from './core.js';
-import type { HeroSignalPlugin } from './definitions.js';
+import type { PushizoPlugin } from './definitions.js';
 
-/** Ham native eklenti (Android `HeroSignalPlugin.kt`, iOS `HeroSignalPlugin.swift`, web `HeroSignalWeb`). */
-export const HeroSignalNative = registerPlugin<HeroSignalPlugin>('HeroSignal', {
-  web: () => import('./web.js').then((m) => new m.HeroSignalWeb()),
+/** Ham native eklenti (Android `PushizoPlugin.kt`, iOS `PushizoPlugin.swift`, web `PushizoWeb`). */
+export const PushizoNative = registerPlugin<PushizoPlugin>('Pushizo', {
+  web: () => import('./web.js').then((m) => new m.PushizoWeb()),
 });
 
 const EVENT_TYPES: readonly BridgeEventType[] = [
@@ -19,11 +19,11 @@ const EVENT_TYPES: readonly BridgeEventType[] = [
 ];
 
 /** Capacitor eklentisini cephenin taşıma arayüzüne uyarlar. */
-export function capacitorBridge(plugin: HeroSignalPlugin): Bridge {
+export function capacitorBridge(plugin: PushizoPlugin): Bridge {
   return {
     call<T>(method: string, args?: Record<string, unknown>): Promise<T> {
       const fn = (plugin as unknown as Record<string, ((a?: unknown) => Promise<T>) | undefined>)[method];
-      if (typeof fn !== 'function') return Promise.reject(new Error(`HeroSignal: bilinmeyen metot ${method}`));
+      if (typeof fn !== 'function') return Promise.reject(new Error(`Pushizo: bilinmeyen metot ${method}`));
       return fn.call(plugin, args ?? {});
     },
     async subscribe(handler) {
@@ -39,20 +39,20 @@ export function capacitorBridge(plugin: HeroSignalPlugin): Bridge {
 }
 
 /**
- * HeroSignal Capacitor SDK (eski sağlayıcı v5 yüzeyiyle uyumlu).
+ * Pushizo Capacitor SDK (eski sağlayıcı v5 yüzeyiyle uyumlu).
  *
  * ```ts
- * import { HeroSignal } from '@herosignal/capacitor';
- * await HeroSignal.initialize('app_…', { apiUrl: 'https://api.example.com' });
- * await HeroSignal.Notifications.requestPermission();
- * await HeroSignal.login('user_42');
- * await HeroSignal.User.addTag('plan', 'pro');
- * HeroSignal.Notifications.addClickListener((e) => console.log(e.result.url));
+ * import { Pushizo } from '@pushizo/capacitor';
+ * await Pushizo.initialize('app_…', { apiUrl: 'https://api.example.com' });
+ * await Pushizo.Notifications.requestPermission();
+ * await Pushizo.login('user_42');
+ * await Pushizo.User.addTag('plan', 'pro');
+ * Pushizo.Notifications.addClickListener((e) => console.log(e.result.url));
  * ```
  */
-export const HeroSignal = new HeroSignalCore(capacitorBridge(HeroSignalNative));
-export default HeroSignal;
+export const Pushizo = new PushizoCore(capacitorBridge(PushizoNative));
+export default Pushizo;
 
-export { HeroSignalCore, normalizeNotification } from './core.js';
+export { PushizoCore, normalizeNotification } from './core.js';
 export type { Bridge, BridgeEventType } from './core.js';
 export * from './definitions.js';

@@ -3,9 +3,9 @@ require 'json'
 package = JSON.parse(File.read(File.join(__dir__, 'package.json')))
 
 Pod::Spec.new do |s|
-  s.name             = 'HerosignalCapacitor'
+  s.name             = 'PushizoCapacitor'
   s.version          = package['version']
-  s.summary          = 'HeroSignal Capacitor eklentisi (iOS köprüsü)'
+  s.summary          = 'Pushizo Capacitor eklentisi (iOS köprüsü)'
   s.description      = package['description']
   s.license          = package['license']
   s.homepage         = package['homepage']
@@ -15,6 +15,6 @@ Pod::Spec.new do |s|
   s.ios.deployment_target = '15.0'
   s.swift_version    = '5.9'
   s.dependency 'Capacitor'
-  # Monorepo içinde uygulama Podfile'ında: pod 'HeroSignal', :path => '<repo>/sdk/ios'
-  s.dependency 'HeroSignal', '~> 0.1'
+  # Monorepo içinde uygulama Podfile'ında: pod 'Pushizo', :path => '<repo>/sdk/ios'
+  s.dependency 'Pushizo', '~> 0.1'
 end

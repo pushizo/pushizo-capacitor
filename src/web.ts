@@ -1,10 +1,10 @@
 /*
- * Web platformu: `@herosignal/web` SDK'sına devreder (Web Push + service worker, konum). Native'e özgü
+ * Web platformu: `@pushizo/web` SDK'sına devreder (Web Push + service worker, konum). Native'e özgü
  * işlemler (Android tepsi kimliği ile kaldırma, engellenmiş bildirimi sonradan gösterme) web'de
  * `unavailable` hatası verir.
  */
 import { WebPlugin } from '@capacitor/core';
-import WebSdk from '@herosignal/web';
+import WebSdk from '@pushizo/web';
 import type {
   ForegroundLifecycleEvent as WebForegroundEvent,
   InboxItem as WebInboxItem,
@@ -13,11 +13,11 @@ import type {
   NotificationClickEvent as WebClickEvent,
   PushSubscriptionState as WebPushSubscriptionState,
   UserPreferences as WebUserPreferences,
-} from '@herosignal/web';
+} from '@pushizo/web';
 
 import type {
-  HeroSignalNotification,
-  HeroSignalPlugin,
+  PushizoNotification,
+  PushizoPlugin,
   InboxItem,
   InboxListOptions,
   InboxPage,
@@ -54,7 +54,7 @@ function toStringRecord(data: Record<string, unknown> | undefined): Record<strin
   return out;
 }
 
-function mapNotification(n: WebClickEvent['notification'] | WebForegroundEvent['notification']): HeroSignalNotification {
+function mapNotification(n: WebClickEvent['notification'] | WebForegroundEvent['notification']): PushizoNotification {
   return {
     title: n.title || null,
     body: n.body || null,
@@ -148,7 +148,7 @@ function mapState(s: WebPushSubscriptionState): PushSubscriptionState {
   return { id: s.id, token: s.token, optedIn: s.optedIn, permission: s.permission === 'granted' };
 }
 
-export class HeroSignalWeb extends WebPlugin implements HeroSignalPlugin {
+export class PushizoWeb extends WebPlugin implements PushizoPlugin {
   private listenersAttached = false;
   private lastPermission: boolean | null = null;
   private foregroundSeq = 0;

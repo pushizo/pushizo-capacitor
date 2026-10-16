@@ -1,4 +1,4 @@
-package com.herosignal.capacitor
+package com.pushizo.capacitor
 
 import android.Manifest
 import android.os.Build
@@ -13,24 +13,24 @@ import com.getcapacitor.annotation.PermissionCallback
 import org.json.JSONObject
 
 /**
- * Capacitor → HeroSignal Android SDK köprüsü. Metotlar [HeroSignalBridgeCore] üzerinden SDK'ya iletilir;
+ * Capacitor → Pushizo Android SDK köprüsü. Metotlar [PushizoBridgeCore] üzerinden SDK'ya iletilir;
  * SDK olayları `notifyListeners` ile JS'e gönderilir. Bildirim tıklaması JS dinleyicisi bağlanana kadar
  * saklanır (`retainUntilConsumed`), böylece soğuk başlatma tıklaması kaybolmaz.
  */
 @CapacitorPlugin(
-    name = "HeroSignal",
+    name = "Pushizo",
     permissions = [
-        Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = HeroSignalPlugin.PERMISSION_ALIAS),
+        Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = PushizoPlugin.PERMISSION_ALIAS),
         // Konum izinleri ayrı takma adlarla tanımlanır; yalnızca uygulama manifest'inde bulunanlar istenir.
-        Permission(strings = [Manifest.permission.ACCESS_COARSE_LOCATION], alias = HeroSignalPlugin.LOCATION_COARSE_ALIAS),
-        Permission(strings = [Manifest.permission.ACCESS_FINE_LOCATION], alias = HeroSignalPlugin.LOCATION_FINE_ALIAS),
+        Permission(strings = [Manifest.permission.ACCESS_COARSE_LOCATION], alias = PushizoPlugin.LOCATION_COARSE_ALIAS),
+        Permission(strings = [Manifest.permission.ACCESS_FINE_LOCATION], alias = PushizoPlugin.LOCATION_FINE_ALIAS),
     ],
 )
-class HeroSignalPlugin : Plugin() {
-    private lateinit var core: HeroSignalBridgeCore
+class PushizoPlugin : Plugin() {
+    private lateinit var core: PushizoBridgeCore
 
     override fun load() {
-        core = HeroSignalBridgeCore(context.applicationContext) { type, payload ->
+        core = PushizoBridgeCore(context.applicationContext) { type, payload ->
             notifyListeners(type, JSObject.fromJSONObject(payload), type == "click")
         }
         core.attachIfInitialized()
@@ -41,7 +41,7 @@ class HeroSignalPlugin : Plugin() {
         super.handleOnDestroy()
     }
 
-    private fun reply(call: PluginCall) = object : HeroSignalBridgeCore.Reply {
+    private fun reply(call: PluginCall) = object : PushizoBridgeCore.Reply {
         override fun success(data: JSONObject?) {
             if (data == null) call.resolve() else call.resolve(JSObject.fromJSONObject(data))
         }
@@ -53,7 +53,7 @@ class HeroSignalPlugin : Plugin() {
 
     private fun dispatch(call: PluginCall) {
         val handled = core.handle(call.methodName, call.data, reply(call))
-        if (!handled) call.unimplemented("HeroSignal: ${call.methodName} desteklenmiyor")
+        if (!handled) call.unimplemented("Pushizo: ${call.methodName} desteklenmiyor")
     }
 
     @PluginMethod fun initialize(call: PluginCall) = dispatch(call)
@@ -121,7 +121,7 @@ class HeroSignalPlugin : Plugin() {
     }
 
     /**
-     * Konum izni (v2 Faz 17b): açıklama diyaloğu ve manifest denetimi [HeroSignalBridgeCore] içindedir; sistem izni
+     * Konum izni (v2 Faz 17b): açıklama diyaloğu ve manifest denetimi [PushizoBridgeCore] içindedir; sistem izni
      * Capacitor izin API'siyle (istek kodu yerine `@PermissionCallback`) istenir.
      */
     @PluginMethod
