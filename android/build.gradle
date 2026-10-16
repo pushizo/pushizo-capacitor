@@ -1,7 +1,7 @@
-// HeroSignal Capacitor eklentisi (Android). Uygulamanın Capacitor projesi tarafından `:herosignal-capacitor`
+// Pushizo Capacitor eklentisi (Android). Uygulamanın Capacitor projesi tarafından `:pushizo-capacitor`
 // modülü olarak eklenir (npx cap sync). Sürümler uygulamanın `variables.gradle` değerleriyle ezilebilir.
 ext {
-    herosignalAndroidVersion = project.hasProperty('herosignalAndroidVersion') ? rootProject.ext.herosignalAndroidVersion : '0.1.0'
+    pushizoAndroidVersion = project.hasProperty('pushizoAndroidVersion') ? rootProject.ext.pushizoAndroidVersion : '0.1.0'
     androidxAppCompatVersion = project.hasProperty('androidxAppCompatVersion') ? rootProject.ext.androidxAppCompatVersion : '1.6.1'
 }
 
@@ -21,7 +21,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
-    namespace = 'com.herosignal.capacitor'
+    namespace = 'com.pushizo.capacitor'
     compileSdk = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 35
 
     defaultConfig {
@@ -54,11 +54,11 @@ dependencies {
     implementation project(':capacitor-android')
     // `Plugin.getActivity()` AppCompatActivity döndürür (konum izni açıklama diyaloğu); Capacitor eklenti şablonuyla aynı.
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
-    // Monorepo içinde uygulama settings.gradle'ında ":herosignal" modülü varsa kaynaktan,
+    // Monorepo içinde uygulama settings.gradle'ında ":pushizo" modülü varsa kaynaktan,
     // yoksa yayınlanmış artefakttan (publishToMavenLocal / Maven Central) alınır.
-    if (rootProject.findProject(':herosignal') != null) {
-        api project(':herosignal')
+    if (rootProject.findProject(':pushizo') != null) {
+        api project(':pushizo')
     } else {
-        api "com.herosignal:herosignal-android:$herosignalAndroidVersion"
+        api "com.pushizo:pushizo-android:$pushizoAndroidVersion"
     }
 }

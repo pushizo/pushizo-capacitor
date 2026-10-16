@@ -1,13 +1,13 @@
 {
-  "name": "@herosignal/capacitor",
+  "name": "@pushizo/capacitor",
   "version": "0.1.0",
-  "description": "HeroSignal Capacitor (Ionic) eklentisi: push bildirimi, kullanıcı/tag, e-posta/SMS, in-app mesaj ve bildirim kutusu",
+  "description": "Pushizo Capacitor (Ionic) eklentisi: push bildirimi, kullanıcı/tag, e-posta/SMS, in-app mesaj ve bildirim kutusu",
   "license": "MIT",
-  "author": "HeroSignal <sdk@herosignal.dev>",
-  "homepage": "https://github.com/exec0de/herosignal",
+  "author": "Pushizo <bildirim@pushizo.com>",
+  "homepage": "https://github.com/exec0de/pushizo",
   "repository": {
     "type": "git",
-    "url": "https://github.com/exec0de/herosignal.git",
+    "url": "https://github.com/exec0de/pushizo.git",
     "directory": "sdk/capacitor"
   },
   "keywords": [
@@ -17,7 +17,7 @@
     "ionic",
     "push",
     "notifications",
-    "herosignal"
+    "pushizo"
   ],
   "type": "module",
   "main": "./dist/esm/index.js",
@@ -36,7 +36,7 @@
     "android/proguard-rules.pro",
     "dist/",
     "ios/Sources",
-    "HerosignalCapacitor.podspec",
+    "PushizoCapacitor.podspec",
     "Package.swift"
   ],
   "sideEffects": false,
@@ -59,11 +59,11 @@
   },
   "peerDependencies": {
     "@capacitor/core": ">=6.0.0",
-    "@herosignal/web": "^0.1.0"
+    "@pushizo/web": "^0.1.0"
   },
   "devDependencies": {
     "@capacitor/core": "6.2.2",
-    "@herosignal/web": "file:../web",
+    "@pushizo/web": "file:../web",
     "happy-dom": "^20.14.5",
     "typescript": "^5.9.3",
     "vitest": "^5.0.3"

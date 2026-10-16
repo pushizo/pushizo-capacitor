@@ -1,20 +1,20 @@
 import Capacitor
 import Foundation
-import HeroSignal
-#if canImport(HeroSignalCore)
-import HeroSignalCore
+import Pushizo
+#if canImport(PushizoCore)
+import PushizoCore
 #endif
 import UIKit
 
 /**
- Capacitor → HeroSignal iOS SDK köprüsü. Metotlar `HeroSignalBridgeCore` üzerinden SDK'ya iletilir, SDK olayları
+ Capacitor → Pushizo iOS SDK köprüsü. Metotlar `PushizoBridgeCore` üzerinden SDK'ya iletilir, SDK olayları
  `notifyListeners` ile JS'e gönderilir. APNs token'ı uygulamanın AppDelegate'inin Capacitor'a ilettiği
  `capacitorDidRegisterForRemoteNotifications` bildiriminden alınır (README: iOS kurulumu).
  */
-@objc(HeroSignalPlugin)
-public class HeroSignalPlugin: CAPPlugin, CAPBridgedPlugin {
-    public let identifier = "HeroSignalPlugin"
-    public let jsName = "HeroSignal"
+@objc(PushizoPlugin)
+public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "PushizoPlugin"
+    public let jsName = "Pushizo"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "initialize", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setConsentGiven", returnType: CAPPluginReturnPromise),
@@ -66,26 +66,26 @@ public class HeroSignalPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "requestLocationPermission", returnType: CAPPluginReturnPromise),
     ]
 
-    private var core: HeroSignalBridgeCore!
+    private var core: PushizoBridgeCore!
     private var observers: [NSObjectProtocol] = []
 
     override public func load() {
-        core = HeroSignalBridgeCore { [weak self] type, payload in
+        core = PushizoBridgeCore { [weak self] type, payload in
             // Tıklama JS dinleyicisi bağlanana kadar saklanır (soğuk başlatma).
             self?.notifyListeners(type, data: payload, retainUntilConsumed: type == "click")
         }
         // Daha önce JS ile başlatıldıysa SDK hemen kayıtlı ayarlarla başlatılır; bildirimden açılış tıklaması kaybolmaz.
-        if !HeroSignal.isInitialized, let config = HeroSignalBridgeConfig.load() {
+        if !Pushizo.isInitialized, let config = PushizoBridgeConfig.load() {
             config.initializeSdk()
         }
         core.attachIfInitialized()
 
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: .capacitorDidRegisterForRemoteNotifications, object: nil, queue: .main) { notification in
-            if let token = notification.object as? Data { HeroSignal.setDeviceToken(token) }
+            if let token = notification.object as? Data { Pushizo.setDeviceToken(token) }
         })
         observers.append(center.addObserver(forName: .capacitorDidFailToRegisterForRemoteNotifications, object: nil, queue: .main) { notification in
-            if let error = notification.object as? Error { HeroSignal.setDeviceTokenError(error) }
+            if let error = notification.object as? Error { Pushizo.setDeviceTokenError(error) }
         })
     }
 
@@ -106,7 +106,7 @@ public class HeroSignalPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.reject(message, code)
             }
         }
-        if !handled { call.unimplemented("HeroSignal: \(call.methodName) desteklenmiyor") }
+        if !handled { call.unimplemented("Pushizo: \(call.methodName) desteklenmiyor") }
     }
 
     @objc(initialize:) func initializeSdk(_ call: CAPPluginCall) { dispatch(call) }
