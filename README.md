@@ -180,6 +180,27 @@ await Pushizo.LiveActivities.startDefaultLiveActivity('order_42', { title: 'Sipa
 - Kendi tip-güvenli `ActivityAttributes` türünüzü kullanmak isterseniz native tarafta (`AppDelegate`)
   `Pushizo.LiveActivities.register(MyAttributes.self)` çağırın; ayrıntı `docs/sdk/ios.md` → "Live Activities".
 
+### Canlı sohbet
+
+```ts
+await Pushizo.Chat.start({ name: 'Ali' });
+const config = await Pushizo.Chat.getConfig();          // online, offlineMessage, ek sınırları
+const { messages } = await Pushizo.Chat.getMessages();
+Pushizo.Chat.addEventListener('message', ({ message }) => render(message));
+Pushizo.Chat.addEventListener('open', ({ conversationId }) => openChat(conversationId)); // bildirime tıklama
+await Pushizo.Chat.startListening();                     // ekran açıkken; ayrılınca stopListening()
+await Pushizo.Chat.sendMessage('Merhaba');               // bot hızlı yanıtı: sendMessage(label, { optionId })
+await Pushizo.Chat.sendAttachment({ base64 }, { fileName: 'a.png', mimeType: 'image/png' });
+await Pushizo.Chat.markRead(messages[messages.length - 1].seq);
+```
+
+Ziyaretçi kimliği, çevrimdışı kuyruk (aynı `client_message_id` ile yeniden deneme), canlı akış (SSE; koparsa üstel
+geri çekilme + `after_seq` yoklaması) ve push ile gelen temsilci mesajları (`pushizo_chat`) yerel Android/iOS SDK'sındadır;
+`start` sonrası login/logout ve push aboneliği değişince bağlama yerel SDK'da yenilenir, logout ziyaretçiyi sıfırlar.
+Mesajlar `seq` ile sıralanır; ağ yokken gönderilen mesaj `pending` döner ve gönderilince olayla sunucu kopyası gelir.
+Ayrıntı: `docs/sdk/android.md` / `docs/sdk/ios.md` → "Canlı sohbet" (ADR-0040).
+Capacitor web'de sohbet `@pushizo/web` widget'ıyla sunulur; `Pushizo.Chat` çağrıları `PLATFORM_NOT_SUPPORTED` döner.
+
 ### Konum
 
 Kullanıcı izin verirse cihazın konumu push aboneliğine yazılır (v2 Faz 17b); segmentlerde konuma göre hedefleme için

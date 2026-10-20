@@ -63,6 +63,21 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "startDefaultLiveActivity", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setLocationShared", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "isLocationShared", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatStart", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatGetConfig", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatGetConversation", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatGetMessages", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatSendMessage", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatSendAttachment", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatMarkRead", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatRefreshUnreadCount", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatGetUnreadCount", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatLeaveOfflineMessage", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatSetTyping", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatStartListening", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatStopListening", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatAttachmentUrl", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatGetVisitorId", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestLocationPermission", returnType: CAPPluginReturnPromise),
     ]
 
@@ -72,7 +87,7 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
     override public func load() {
         core = PushizoBridgeCore { [weak self] type, payload in
             // Tıklama JS dinleyicisi bağlanana kadar saklanır (soğuk başlatma).
-            self?.notifyListeners(type, data: payload, retainUntilConsumed: type == "click")
+            self?.notifyListeners(type, data: payload, retainUntilConsumed: type == "click" || type == "chatOpen")
         }
         // Daha önce JS ile başlatıldıysa SDK hemen kayıtlı ayarlarla başlatılır; bildirimden açılış tıklaması kaybolmaz.
         if !Pushizo.isInitialized, let config = PushizoBridgeConfig.load() {
@@ -156,5 +171,20 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func startDefaultLiveActivity(_ call: CAPPluginCall) { dispatch(call) }
     @objc func setLocationShared(_ call: CAPPluginCall) { dispatch(call) }
     @objc func isLocationShared(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatStart(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatGetConfig(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatGetConversation(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatGetMessages(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatSendMessage(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatSendAttachment(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatMarkRead(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatRefreshUnreadCount(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatGetUnreadCount(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatLeaveOfflineMessage(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatSetTyping(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatStartListening(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatStopListening(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatAttachmentUrl(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatGetVisitorId(_ call: CAPPluginCall) { dispatch(call) }
     @objc func requestLocationPermission(_ call: CAPPluginCall) { dispatch(call) }
 }
