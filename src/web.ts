@@ -16,6 +16,11 @@ import type {
 } from '@pushizo/web';
 
 import type {
+  ChatConfig,
+  ChatConversationState,
+  ChatIdentifyResult,
+  ChatMessage,
+  ChatMessagePage,
   PushizoNotification,
   PushizoPlugin,
   InboxItem,
@@ -120,6 +125,13 @@ function codedError(code: string, message: string): Error {
 
 /** Android köprüsüyle aynı ret mesajı (`PLATFORM_NOT_SUPPORTED`). */
 const LIVE_ACTIVITIES_IOS_ONLY = "Live Activities yalnızca iOS'ta desteklenir";
+
+/** Web'de canlı sohbet `@pushizo/web` sohbet widget'ıyla sunulur; `Pushizo.Chat` yalnızca Android ve iOS'tadır. */
+const CHAT_NATIVE_ONLY = "Capacitor web'de canlı sohbet Web SDK widget'ıyla sunulur; Pushizo.Chat yalnızca Android ve iOS'ta kullanılabilir";
+
+function chatUnsupported(): Error {
+  return codedError('PLATFORM_NOT_SUPPORTED', CHAT_NATIVE_ONLY);
+}
 
 /**
  * Kuyruğa alınan yazma sunucuya ulaştığında `PUT /preferences` yanıtının içereceği listeyi üretir (sunucuyla aynı kural):
@@ -450,5 +462,66 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
     contentState: Record<string, LiveActivityValue>;
   }): Promise<void> {
     throw codedError('PLATFORM_NOT_SUPPORTED', LIVE_ACTIVITIES_IOS_ONLY);
+  }
+
+  // Canlı sohbet: web'de açık hatayla reddedilir (sessizce yok sayılmaz).
+  async chatStart(): Promise<ChatIdentifyResult> {
+    throw chatUnsupported();
+  }
+
+  async chatGetConfig(): Promise<ChatConfig> {
+    throw chatUnsupported();
+  }
+
+  async chatGetConversation(): Promise<ChatConversationState> {
+    throw chatUnsupported();
+  }
+
+  async chatGetMessages(): Promise<ChatMessagePage> {
+    throw chatUnsupported();
+  }
+
+  async chatSendMessage(): Promise<ChatMessage> {
+    throw chatUnsupported();
+  }
+
+  async chatSendAttachment(): Promise<ChatMessage> {
+    throw chatUnsupported();
+  }
+
+  async chatMarkRead(): Promise<{ unreadCount: number }> {
+    throw chatUnsupported();
+  }
+
+  async chatRefreshUnreadCount(): Promise<{ unreadCount: number }> {
+    throw chatUnsupported();
+  }
+
+  async chatGetUnreadCount(): Promise<{ unreadCount: number }> {
+    throw chatUnsupported();
+  }
+
+  async chatLeaveOfflineMessage(): Promise<ChatMessage> {
+    throw chatUnsupported();
+  }
+
+  async chatSetTyping(): Promise<void> {
+    throw chatUnsupported();
+  }
+
+  async chatStartListening(): Promise<void> {
+    throw chatUnsupported();
+  }
+
+  async chatStopListening(): Promise<void> {
+    throw chatUnsupported();
+  }
+
+  async chatAttachmentUrl(): Promise<{ url: string }> {
+    throw chatUnsupported();
+  }
+
+  async chatGetVisitorId(): Promise<{ visitorId: string | null }> {
+    throw chatUnsupported();
   }
 }

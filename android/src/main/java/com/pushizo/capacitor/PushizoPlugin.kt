@@ -31,7 +31,7 @@ class PushizoPlugin : Plugin() {
 
     override fun load() {
         core = PushizoBridgeCore(context.applicationContext) { type, payload ->
-            notifyListeners(type, JSObject.fromJSONObject(payload), type == "click")
+            notifyListeners(type, JSObject.fromJSONObject(payload), type == "click" || type == "chatOpen")
         }
         core.attachIfInitialized()
     }
@@ -102,6 +102,21 @@ class PushizoPlugin : Plugin() {
     @PluginMethod fun startDefaultLiveActivity(call: PluginCall) = dispatch(call)
     @PluginMethod fun setLocationShared(call: PluginCall) = dispatch(call)
     @PluginMethod fun isLocationShared(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatStart(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatGetConfig(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatGetConversation(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatGetMessages(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatSendMessage(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatSendAttachment(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatMarkRead(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatRefreshUnreadCount(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatGetUnreadCount(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatLeaveOfflineMessage(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatSetTyping(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatStartListening(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatStopListening(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatAttachmentUrl(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatGetVisitorId(call: PluginCall) = dispatch(call)
 
     /** Android 13+ POST_NOTIFICATIONS istemi; önceki sürümlerde çalışma zamanı izni yoktur, mevcut durum döner. */
     @PluginMethod

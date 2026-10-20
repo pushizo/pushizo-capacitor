@@ -16,6 +16,8 @@ const EVENT_TYPES: readonly BridgeEventType[] = [
   'permissionChange',
   'inAppClick',
   'inAppLifecycle',
+  'chatEvent',
+  'chatOpen',
 ];
 
 /** Capacitor eklentisini cephenin taşıma arayüzüne uyarlar. */
