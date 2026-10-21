@@ -13,8 +13,17 @@
 
 **Pushizo Capacitor plugin** — Capacitor (Ionic) plugin that wraps the native Pushizo Android and iOS SDKs; on the web it delegates to the Pushizo Web SDK.
 
-> **Status:** Publishing to npm is in progress; until then you can build from this repository.<br>
-> **Durum:** npm yayını hazırlanıyor; o zamana kadar bu depodan derleyerek kullanabilirsiniz.
+> **Status:** Publishing to npm is in progress.<br>
+> **Durum:** npm yayını hazırlanıyor.
+
+**Install from GitHub until then · O zamana kadar GitHub'dan kurulum:**
+
+```bash
+npm install https://github.com/pushizo/pushizo-web/releases/download/v0.1.0/pushizo-web-0.1.0.tgz \n  https://github.com/pushizo/pushizo-capacitor/releases/download/v0.1.0/pushizo-capacitor-0.1.0.tgz
+npx cap sync
+```
+
+**After publication · Yayından sonra:**
 
 ```bash
 npm install @pushizo/capacitor
