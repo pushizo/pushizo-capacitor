@@ -1,3 +1,32 @@
+<!-- pushizo:header -->
+<p align="center">
+  <a href="https://pushizo.com"><img src="https://raw.githubusercontent.com/pushizo/.github/main/profile/assets/mark.svg" alt="Pushizo" width="56" height="56"></a>
+</p>
+<p align="center">
+  <a href="https://docs.pushizo.com/docs/sdk/capacitor"><img src="https://img.shields.io/badge/docs-docs.pushizo.com-5b4bdb" alt="Docs"></a>
+  <a href="https://docs.pushizo.com/docs/api"><img src="https://img.shields.io/badge/API-reference-b44fc4" alt="API reference"></a>
+  <a href="https://github.com/pushizo/pushizo-capacitor/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-16130f" alt="License: MIT"></a>
+</p>
+<p align="center"><a href="#english">English</a> · <a href="#türkçe">Türkçe</a></p>
+
+## English
+
+**Pushizo Capacitor plugin** — Capacitor (Ionic) plugin that wraps the native Pushizo Android and iOS SDKs; on the web it delegates to the Pushizo Web SDK.
+
+> **Status:** Publishing to npm is in progress; until then you can build from this repository.<br>
+> **Durum:** npm yayını hazırlanıyor; o zamana kadar bu depodan derleyerek kullanabilirsiniz.
+
+```bash
+npm install @pushizo/capacitor
+npx cap sync
+```
+
+The detailed guide below is in Turkish; code samples are language-neutral. Full documentation:
+[docs.pushizo.com/docs/sdk/capacitor](https://docs.pushizo.com/docs/sdk/capacitor) · API reference: [docs.pushizo.com/docs/api](https://docs.pushizo.com/docs/api).
+
+## Türkçe
+<!-- /pushizo:header -->
+
 # @pushizo/capacitor
 
 Pushizo'nun Capacitor (Ionic) eklentisi. Native Pushizo Android (`com.pushizo:pushizo-android`) ve iOS (`Pushizo` pod / SPM) SDK'larını sarar; web platformunda `@pushizo/web` SDK'sına devreder. API yüzeyi plan 06 §6.1 ve eski sağlayıcı v5 ile uyumludur.
@@ -87,7 +116,7 @@ In-app mesajları yerel Android/iOS SDK'sı çizer; bu paket köprüdür. HTML i
 `close`/`click`/`addTag`/`trackEvent`) ve carousel blokları yerel SDK'dan olduğu gibi devralınır: ek kod veya
 yapılandırma gerekmez, tıklama ve yaşam döngüsü olayları mevcut in-app dinleyicilerine gelir. Yetenek bildirimi
 (`supports=html,carousel`) yerel SDK tarafından yapılır; desteklemeyen eski yerel sürümlere sunucu HTML mesaj göndermez
-ve carousel bloklarını çıkarır (ADR-0027 §6–7).
+ve carousel bloklarını çıkarır.
 
 ### Bildirim kutusu
 
@@ -119,7 +148,7 @@ Tercihler bir abonelik ister (yoksa `NOT_READY`); sahiplik kanıtı native SDK t
 ### JWT ile kimlik doğrulama
 
 App ayarlarında kimlik doğrulama kipi (`identity_verification_mode`) `jwt` veya `both` ise kullanıcı, sunucunuzda
-imzalanmış kısa ömürlü bir ES256 JWT ile kimliklendirilir (ADR-0023 §9; talepler: `sub` = external_id, `aud` = app_id, `exp`/`iat` zorunlu, en çok 24 saat, yalnızca ES256).
+imzalanmış kısa ömürlü bir ES256 JWT ile kimliklendirilir (talepler: `sub` = external_id, `aud` = app_id, `exp`/`iat` zorunlu, en çok 24 saat, yalnızca ES256).
 
 ```ts
 await Pushizo.login('user_42', { jwt: jwtFromBackend });                  // yalnızca JWT
@@ -140,7 +169,7 @@ await Pushizo.logout();
 
 ### Live Activities (iOS)
 
-Eklenti, iOS SDK'nın genel `PushizoDefaultLiveActivityAttributes` türünü kullanır (ADR-0024). Push-to-start (sunucudan
+Eklenti, iOS SDK'nın genel `PushizoDefaultLiveActivityAttributes` türünü kullanır. Push-to-start (sunucudan
 uzaktan başlatma) iOS 17.2+, yerel başlatma iOS 16.1+ ister; Android ve web'de çağrılar `PLATFORM_NOT_SUPPORTED` ile
 reddedilir.
 
@@ -178,7 +207,7 @@ await Pushizo.LiveActivities.startDefaultLiveActivity('order_42', { title: 'Sipa
 - Ret kodları: `PLATFORM_NOT_SUPPORTED` (Android, web veya iOS 16.1 öncesi), `NOT_READY` (`initialize` çağrılmadı),
   `INVALID_ARGUMENT`, `LIVE_ACTIVITY_FAILED` (Live Activities kapalı, `NSSupportsLiveActivities` yok vb.).
 - Kendi tip-güvenli `ActivityAttributes` türünüzü kullanmak isterseniz native tarafta (`AppDelegate`)
-  `Pushizo.LiveActivities.register(MyAttributes.self)` çağırın; ayrıntı `docs/sdk/ios.md` → "Live Activities".
+  `Pushizo.LiveActivities.register(MyAttributes.self)` çağırın; ayrıntı [ios rehberi](https://docs.pushizo.com/docs/sdk/ios) → "Live Activities".
 
 ### Canlı sohbet
 
@@ -198,12 +227,12 @@ Ziyaretçi kimliği, çevrimdışı kuyruk (aynı `client_message_id` ile yenide
 geri çekilme + `after_seq` yoklaması) ve push ile gelen temsilci mesajları (`pushizo_chat`) yerel Android/iOS SDK'sındadır;
 `start` sonrası login/logout ve push aboneliği değişince bağlama yerel SDK'da yenilenir, logout ziyaretçiyi sıfırlar.
 Mesajlar `seq` ile sıralanır; ağ yokken gönderilen mesaj `pending` döner ve gönderilince olayla sunucu kopyası gelir.
-Ayrıntı: `docs/sdk/android.md` / `docs/sdk/ios.md` → "Canlı sohbet" (ADR-0040).
+Ayrıntı: [android rehberi](https://docs.pushizo.com/docs/sdk/android) / [ios rehberi](https://docs.pushizo.com/docs/sdk/ios) → "Canlı sohbet".
 Capacitor web'de sohbet `@pushizo/web` widget'ıyla sunulur; `Pushizo.Chat` çağrıları `PLATFORM_NOT_SUPPORTED` döner.
 
 ### Konum
 
-Kullanıcı izin verirse cihazın konumu push aboneliğine yazılır (v2 Faz 17b); segmentlerde konuma göre hedefleme için
+Kullanıcı izin verirse cihazın konumu push aboneliğine yazılır; segmentlerde konuma göre hedefleme için
 kullanılır. Paylaşım **yalnızca ön planda** çalışır (arka plan konumu yok): native SDK konumu oturum başında ve uygulama
 ön plana döndüğünde en sık 5 dakikada bir gönderir. İzin yoksa veya gizlilik onayı (`requiresPrivacyConsent`)
 verilmemişse hiçbir şey gönderilmez; tercih kalıcıdır.
@@ -279,7 +308,7 @@ func application(_ application: UIApplication, didFailToRegisterForRemoteNotific
 }
 ```
 
-4. CocoaPods: `ios/App/Podfile` içine `pod 'Pushizo'` ekleyin (CocoaPods trunk). SPM (Capacitor 7): paket `https://github.com/exec0de/pushizo-ios.git` deposundan çözülür.
+4. CocoaPods: `ios/App/Podfile` içine `pod 'Pushizo'` ekleyin (CocoaPods trunk). SPM (Capacitor 7): paket `https://github.com/pushizo/pushizo-ios.git` deposundan çözülür.
 
 Pushizo SDK'sı `UNUserNotificationCenter` delegesini üstlenir (ön plan gösterimi ve tıklama). Aynı uygulamada `@capacitor/push-notifications` kullanmayın.
 
@@ -329,4 +358,25 @@ npm test        # vitest: cephe, web uygulaması ve native sözleşme denetimi
 npm run build   # dist/esm
 ```
 
-Örnek uygulama: `examples/ionic-capacitor`.
+Adım adım kurulum ve örnek kod: [capacitor rehberi](https://docs.pushizo.com/docs/sdk/capacitor).
+
+<!-- pushizo:footer -->
+---
+
+## Support · Destek
+
+- **Guide · Rehber:** [docs.pushizo.com/docs/sdk/capacitor](https://docs.pushizo.com/docs/sdk/capacitor)
+- **API reference & OpenAPI · API referansı ve OpenAPI:** [docs.pushizo.com/docs/api](https://docs.pushizo.com/docs/api) ·
+  [pushizo-openapi](https://github.com/pushizo/pushizo-openapi)
+- **Bugs & ideas · Hata ve öneri:** [Issues](https://github.com/pushizo/pushizo-capacitor/issues)
+- **Security · Güvenlik:** please do not open public issues; email [security@pushizo.com](mailto:security@pushizo.com) ·
+  herkese açık issue açmayın, bu adrese yazın.
+- **Help · Destek:** [support@pushizo.com](mailto:support@pushizo.com)
+
+This repository is mirrored automatically from the Pushizo main repository on every release. Please open an issue
+instead of a pull request; fixes land in the main repository and ship with the next release.
+Bu depo her sürümde Pushizo ana deposundan otomatik yansıtılır. Pull request yerine issue açın; düzeltmeler ana depoda
+yapılır ve bir sonraki sürümle buraya gelir.
+
+Released under the MIT License · MIT lisanslıdır — [LICENSE](https://github.com/pushizo/pushizo-capacitor/blob/main/LICENSE).
+<!-- /pushizo:footer -->

@@ -7,8 +7,7 @@
   "homepage": "https://docs.pushizo.com/docs/sdk/capacitor",
   "repository": {
     "type": "git",
-    "url": "https://github.com/exec0de/pushizo.git",
-    "directory": "sdk/capacitor"
+    "url": "git+https://github.com/pushizo/pushizo-capacitor.git"
   },
   "keywords": [
     "capacitor",

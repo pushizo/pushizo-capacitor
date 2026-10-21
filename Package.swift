@@ -10,7 +10,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", "6.0.0"..<"8.0.0"),
-        .package(url: "https://github.com/exec0de/pushizo-ios.git", from: "0.1.0"),
+        .package(url: "https://github.com/pushizo/pushizo-ios.git", from: "0.1.0"),
     ],
     targets: [
         .target(
