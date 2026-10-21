@@ -19,7 +19,8 @@
 **Install from GitHub until then · O zamana kadar GitHub'dan kurulum:**
 
 ```bash
-npm install https://github.com/pushizo/pushizo-web/releases/download/v0.1.0/pushizo-web-0.1.0.tgz \n  https://github.com/pushizo/pushizo-capacitor/releases/download/v0.1.0/pushizo-capacitor-0.1.0.tgz
+npm install --allow-remote=root https://github.com/pushizo/pushizo-web/releases/download/v0.1.0/pushizo-web-0.1.0.tgz \
+  https://github.com/pushizo/pushizo-capacitor/releases/download/v0.1.0/pushizo-capacitor-0.1.0.tgz
 npx cap sync
 ```
 
