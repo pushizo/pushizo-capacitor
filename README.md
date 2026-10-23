@@ -13,19 +13,6 @@
 
 **Pushizo Capacitor plugin** — Capacitor (Ionic) plugin that wraps the native Pushizo Android and iOS SDKs; on the web it delegates to the Pushizo Web SDK.
 
-> **Status:** Publishing to npm is in progress.<br>
-> **Durum:** npm yayını hazırlanıyor.
-
-**Install from GitHub until then · O zamana kadar GitHub'dan kurulum:**
-
-```bash
-npm install --allow-remote=root https://github.com/pushizo/pushizo-web/releases/download/v0.1.0/pushizo-web-0.1.0.tgz \
-  https://github.com/pushizo/pushizo-capacitor/releases/download/v0.1.0/pushizo-capacitor-0.1.0.tgz
-npx cap sync
-```
-
-**After publication · Yayından sonra:**
-
 ```bash
 npm install @pushizo/capacitor
 npx cap sync
@@ -79,7 +66,7 @@ Pushizo.Notifications.addClickListener((event) => {
 const granted = await Pushizo.Notifications.requestPermission();
 await Pushizo.login('user_42');              // identity verification açıksa: login('user_42', identityHash)
 await Pushizo.User.addTags({ plan: 'pro', level: 3 });
-await Pushizo.User.addEmail('ali@example.com');
+await Pushizo.User.addEmail('ali@pushizo.com');
 await Pushizo.User.addSms('+905551112233');
 await Pushizo.Session.sendEvent('purchase', { sku: 'A1' }, 49.9);
 ```
@@ -343,7 +330,7 @@ import Pushizo
 
 class NotificationService: UNNotificationServiceExtension {
     let hs = PushizoNotificationServiceExtension(appId: "app_xxx", apiUrl: "https://api.pushizo.com",
-                                                    appGroup: "group.com.example.app.pushizo")
+                                                    appGroup: "group.com.pushizo.app.pushizo")
 
     override func didReceive(_ request: UNNotificationRequest, withContentHandler handler: @escaping (UNNotificationContent) -> Void) {
         hs.didReceive(request, withContentHandler: handler)

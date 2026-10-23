@@ -151,14 +151,14 @@ describe('PushizoWeb', () => {
     await hs.initialize('app_1');
     await hs.login('ext_1', 'hash');
     await hs.User.addTags({ plan: 'pro' });
-    await hs.User.addEmail('ali@example.com');
+    await hs.User.addEmail('ali@pushizo.com');
     await hs.InAppMessages.addTrigger('level', 3);
     await hs.InAppMessages.setScreen(null);
     await hs.InAppMessages.setPaused(true);
     await hs.Session.sendEvent('purchase', { sku: 'A' }, 10);
     expect(sdk.login).toHaveBeenCalledWith('ext_1', { identityHash: 'hash', jwt: undefined });
     expect(sdk.User.addTags).toHaveBeenCalledWith({ plan: 'pro' });
-    expect(sdk.User.addEmail).toHaveBeenCalledWith('ali@example.com');
+    expect(sdk.User.addEmail).toHaveBeenCalledWith('ali@pushizo.com');
     expect(sdk.InAppMessages.addTriggers).toHaveBeenCalledWith({ level: '3' });
     expect(sdk.InAppMessages.setScreen).toHaveBeenCalledWith('');
     expect(sdk.InAppMessages.paused).toBe(true);
