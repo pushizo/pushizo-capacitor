@@ -116,9 +116,74 @@ function fakeWebSdk() {
       },
       requestPermission: vi.fn(async (_rationale?: string) => true),
     },
+    FeatureFlags: {
+      // Web SDK `refresh` sonuç döndürmez; yeni değer alındığında gözlemciler çağrılır (test: `flagsUpdated` ile).
+      refresh: vi.fn(async () => {
+        if (flagsUpdated) listeners.flags?.();
+      }),
+      isEnabled: vi.fn((key: string, defaultValue = false) => (key === 'yeni_sepet' ? true : defaultValue)),
+      getValue: vi.fn((key: string, defaultValue?: unknown) => (key === 'tema' ? { renk: 'mavi' } : defaultValue)),
+      addObserver: vi.fn((cb: Fn) => {
+        listeners.flags = cb;
+        return () => {
+          delete listeners.flags;
+        };
+      }),
+    },
+    Placements: {
+      list: vi.fn(async (_key: string, _options?: { limit?: number }) => [serverPlacement]),
+      reportImpression: vi.fn(),
+      reportClick: vi.fn(),
+      reportDismiss: vi.fn(),
+    },
   };
-  return { sdk, listeners, web: new PushizoWeb(sdk as unknown as WebSdkInstance) };
+  let flagsUpdated = true;
+  return {
+    sdk,
+    listeners,
+    web: new PushizoWeb(sdk as unknown as WebSdkInstance),
+    setFlagsUpdated: (value: boolean) => {
+      flagsUpdated = value;
+    },
+  };
 }
+
+/** Sunucunun `GET /placements/{key}` yanıtındaki in-app öğesi (Web SDK olduğu gibi verir). */
+const serverPlacement = {
+  id: 'iam_1',
+  priority: 7,
+  triggers: [{ kind: 'session_start' }],
+  trigger_groups: [[{ kind: 'session_start' }], [{ kind: 'trigger', key: 'level', op: 'gt', value: 3 }, { kind: 'yeni_tur' }]],
+  variant_id: 'b',
+  display: {
+    layout: 'banner_top',
+    background_color: '#fff',
+    text_color: null,
+    dismissible: true,
+    auto_dismiss_seconds: 0,
+    blocks: [
+      { type: 'image', url: 'https://cdn/x.png', alt: null },
+      { type: 'title', text: 'Başlık' },
+      { type: 'button', id: 'b1', text: 'Aç', action: { type: 'url', url: 'https://pushizo.com' }, background_color: '#000', text_color: '#fff' },
+      { type: 'button', id: 'b2', text: 'Geçersiz', action: { type: 'url', url: 'javascript:alert(1)' } },
+      { type: 'button', id: 'b3', text: 'Dönüşüm', action: { type: 'outcome', name: 'satin_alma', value: 9.5 } },
+      {
+        type: 'carousel',
+        id: 'c1',
+        cards: [
+          { id: 'k1', title: 'Kart', body: null, image_url: 'https://cdn/k.png', image_alt: null, button: { id: 'kb', text: 'Git', action: { type: 'deeplink', url: 'app://x' } } },
+          { id: 'k2', title: 'Kart 2', body: 'Gövde', image_url: null, image_alt: null, button: { id: 'kb2', text: 'Yok', action: { type: 'outcome' } } },
+        ],
+      },
+      { type: 'video', url: 'https://cdn/v.mp4' },
+    ],
+  },
+  remaining_impressions: 2,
+  min_interval_seconds: 60,
+  stop_after_interaction: true,
+  last_impression_at: '2026-10-01T10:00:00.000Z',
+  end_at: null,
+};
 
 /** WebPlugin'i doğrudan cepheye bağlar (Capacitor proxy'si olmadan). */
 function coreFor(web: PushizoWeb) {
@@ -218,6 +283,111 @@ describe('PushizoWeb', () => {
     const hs = coreFor(web);
     await expect(hs.Location.setShared(true)).rejects.toThrow(/init önce/);
     await expect(hs.Location.requestPermission()).rejects.toThrow(/init önce/);
+  });
+
+  it('Location: web\'de bölge izleme yoktur; ayar etkisiz, durum false', async () => {
+    const { web } = fakeWebSdk();
+    const hs = coreFor(web);
+    await hs.Location.setGeofencingEnabled(true);
+    expect(await hs.Location.isGeofencingEnabled()).toBe(false);
+  });
+
+  it('özellik bayrakları Web SDK FeatureFlags yüzeyine iletilir; yenileme başarısı gözlemciden anlaşılır', async () => {
+    const { sdk, web, setFlagsUpdated } = fakeWebSdk();
+    const hs = coreFor(web);
+    expect(await hs.FeatureFlags.refresh()).toBe(true);
+    expect(sdk.FeatureFlags.refresh).toHaveBeenCalledTimes(1);
+    // Gözlemci yenileme sonrası kaldırılır; başarısız yenilemede false.
+    expect(sdk.FeatureFlags.addObserver).toHaveBeenCalledTimes(1);
+    setFlagsUpdated(false);
+    expect(await hs.FeatureFlags.refresh()).toBe(false);
+    expect(await hs.FeatureFlags.isEnabled('yeni_sepet')).toBe(true);
+    expect(await hs.FeatureFlags.isEnabled('yok', true)).toBe(true);
+    expect(sdk.FeatureFlags.isEnabled).toHaveBeenLastCalledWith('yok', true);
+    expect(await hs.FeatureFlags.getValue('tema')).toEqual({ renk: 'mavi' });
+    expect(await hs.FeatureFlags.getValue('sepet_limiti', 10)).toBe(10);
+    expect(sdk.FeatureFlags.getValue).toHaveBeenLastCalledWith('sepet_limiti');
+  });
+
+  it('yerleşimler: sunucu öğesi köprü modeline çevrilir (geçersiz düğme ve bilinmeyen blok atlanır)', async () => {
+    const { sdk, web } = fakeWebSdk();
+    const hs = coreFor(web);
+    const [message] = await hs.Placements.list('home_banner', { limit: 3 });
+    expect(sdk.Placements.list).toHaveBeenCalledWith('home_banner', { limit: 3 });
+    expect(message).toEqual({
+      id: 'iam_1',
+      priority: 7,
+      triggers: [{ kind: 'session_start' }],
+      triggerGroups: [
+        [{ kind: 'session_start' }],
+        [{ kind: 'trigger', key: 'level', op: 'gt', value: 3 }, { kind: 'unsupported', name: 'yeni_tur' }],
+      ],
+      variantId: 'b',
+      display: {
+        layout: 'banner_top',
+        backgroundColor: '#fff',
+        textColor: null,
+        dismissible: true,
+        autoDismissSeconds: null,
+        contentType: 'blocks',
+        blocks: [
+          { type: 'image', url: 'https://cdn/x.png', alt: null },
+          { type: 'title', text: 'Başlık' },
+          { type: 'button', id: 'b1', text: 'Aç', action: { type: 'url', url: 'https://pushizo.com' }, backgroundColor: '#000', textColor: '#fff' },
+          { type: 'button', id: 'b3', text: 'Dönüşüm', action: { type: 'outcome', name: 'satin_alma', value: 9.5 }, backgroundColor: null, textColor: null },
+          {
+            type: 'carousel',
+            id: 'c1',
+            cards: [
+              {
+                id: 'k1', title: 'Kart', body: null, imageUrl: 'https://cdn/k.png', imageAlt: null,
+                button: { id: 'kb', text: 'Git', action: { type: 'deeplink', url: 'app://x' }, backgroundColor: null, textColor: null },
+              },
+              { id: 'k2', title: 'Kart 2', body: 'Gövde', imageUrl: null, imageAlt: null, button: null },
+            ],
+          },
+        ],
+        html: null,
+        htmlHeight: null,
+      },
+      remainingImpressions: 2,
+      minIntervalSeconds: 60,
+      stopAfterInteraction: true,
+      lastImpressionAt: Date.parse('2026-10-01T10:00:00.000Z'),
+      endAt: null,
+      language: null,
+    });
+
+    // HTML içerik: bloklar boş, html ve yükseklik taşınır; içeriksiz HTML mesajı atlanır.
+    sdk.Placements.list.mockResolvedValueOnce([
+      { ...serverPlacement, id: 'html_1', display: { layout: 'modal', content_type: 'html', html: '<p>Merhaba</p>', html_height: 120, blocks: [] } },
+      { ...serverPlacement, id: 'html_2', display: { layout: 'modal', content_type: 'html', html: '  ', blocks: [] } },
+    ] as never);
+    const html = await hs.Placements.list('home_banner');
+    expect(html.map((m) => m.id)).toEqual(['html_1']);
+    expect(html[0].display).toMatchObject({ contentType: 'html', html: '<p>Merhaba</p>', htmlHeight: 120, blocks: [], layout: 'modal' });
+  });
+
+  it('yerleşim raporları son listedeki Web SDK mesajıyla yapılır; tanınmayan kimlik yok sayılır', async () => {
+    const { sdk, web } = fakeWebSdk();
+    const hs = coreFor(web);
+    await hs.Placements.reportImpression({ id: 'iam_1' });
+    expect(sdk.Placements.reportImpression).not.toHaveBeenCalled();
+    const [message] = await hs.Placements.list('home_banner');
+    await hs.Placements.reportImpression(message);
+    await hs.Placements.reportClick(message, 'b1');
+    await hs.Placements.reportDismiss(message);
+    expect(sdk.Placements.reportImpression).toHaveBeenCalledWith(serverPlacement);
+    expect(sdk.Placements.reportClick).toHaveBeenCalledWith(serverPlacement, 'b1');
+    expect(sdk.Placements.reportDismiss).toHaveBeenCalledWith(serverPlacement);
+
+    // Önbellek en çok 50 mesaj tutar; en eskiler düşer, yeniden listelenen güncel kalır.
+    sdk.Placements.list.mockResolvedValueOnce(Array.from({ length: 50 }, (_, i) => ({ ...serverPlacement, id: `m${i}` })) as never);
+    await hs.Placements.list('home_banner');
+    await hs.Placements.reportDismiss({ id: 'iam_1' });
+    await hs.Placements.reportDismiss({ id: 'm0' });
+    expect(sdk.Placements.reportDismiss).toHaveBeenCalledTimes(2);
+    expect(sdk.Placements.reportDismiss).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'm0' }));
   });
 
   it('izin isteği sonucu izin gözlemcisine bir kez bildirilir', async () => {

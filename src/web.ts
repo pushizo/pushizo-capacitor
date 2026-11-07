@@ -1,12 +1,13 @@
 /*
- * Web platformu: `@pushizo/web` SDK'sına devreder (Web Push + service worker, konum). Native'e özgü
- * işlemler (Android tepsi kimliği ile kaldırma, engellenmiş bildirimi sonradan gösterme) web'de
- * `unavailable` hatası verir.
+ * Web platformu: `@pushizo/web` SDK'sına devreder (Web Push + service worker, konum, özellik bayrakları, gömülü
+ * yerleşimler). Native'e özgü işlemler (Android tepsi kimliği ile kaldırma, engellenmiş bildirimi sonradan gösterme)
+ * web'de `unavailable` hatası verir; arka plan bölge izleme web'de yoktur.
  */
 import { WebPlugin } from '@capacitor/core';
 import WebSdk from '@pushizo/web';
 import type {
   ForegroundLifecycleEvent as WebForegroundEvent,
+  InAppMessage as WebInAppMessage,
   InboxItem as WebInboxItem,
   InboxPage as WebInboxPage,
   LogLevel as WebLogLevel,
@@ -21,8 +22,16 @@ import type {
   ChatIdentifyResult,
   ChatMessage,
   ChatMessagePage,
+  FeatureFlagValue,
   PushizoNotification,
   PushizoPlugin,
+  InAppAction,
+  InAppBlock,
+  InAppButton,
+  InAppCarouselCard,
+  InAppLayout,
+  InAppMessage,
+  InAppTrigger,
   InboxItem,
   InboxListOptions,
   InboxPage,
@@ -156,6 +165,180 @@ function applyPreferenceInputs(current: UserPreferences, inputs: PreferenceInput
   return { preferences, categories: current.categories };
 }
 
+// --- Gömülü yerleşimler: Web SDK sunucu JSON'unu olduğu gibi verir; native ayrıştırıcılarla (HsInAppParser /
+// HSInAppParser) aynı kurallarla köprü modeline çevrilir, geçersiz blok/düğme atlanır, içeriksiz HTML mesajı düşer.
+
+type JsonObject = Record<string, unknown>;
+const IN_APP_LAYOUTS: readonly InAppLayout[] = ['modal', 'banner_top', 'banner_bottom', 'fullscreen'];
+/** Rapor çağrıları için saklanan son `list` mesajları (kimliğe göre, en çok bu kadar). */
+const MAX_PLACEMENT_CACHE = 50;
+
+function isObject(value: unknown): value is JsonObject {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function nonEmpty(value: unknown): string | null {
+  return typeof value === 'string' && value !== '' ? value : null;
+}
+
+function finite(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/** Pozitif tam sayı; aksi halde null (`auto_dismiss_seconds`, `html_height`). */
+function positiveInt(value: unknown): number | null {
+  const n = finite(value);
+  return n !== null && Number.isInteger(n) && n > 0 ? n : null;
+}
+
+function mapInAppTrigger(raw: JsonObject): InAppTrigger {
+  const kind = typeof raw.kind === 'string' ? raw.kind : '';
+  const unsupported: InAppTrigger = { kind: 'unsupported', name: kind };
+  switch (kind) {
+    case 'session_start':
+      return { kind };
+    case 'session_duration': {
+      const seconds = finite(raw.seconds);
+      return seconds === null ? unsupported : { kind, seconds };
+    }
+    case 'event':
+    case 'screen':
+      return typeof raw.name === 'string' ? { kind, name: raw.name } : unsupported;
+    case 'trigger': {
+      if (typeof raw.key !== 'string' || typeof raw.op !== 'string') return unsupported;
+      const value = typeof raw.value === 'string' ? raw.value : finite(raw.value);
+      return { kind, key: raw.key, op: raw.op, value };
+    }
+    default:
+      return unsupported;
+  }
+}
+
+/** Aksiyon yoksa `dismiss`; adressiz url/deeplink ve adsız outcome geçersizdir (düğme atlanır). */
+function mapInAppAction(raw: unknown): InAppAction | null {
+  if (!isObject(raw)) return { type: 'dismiss' };
+  switch (raw.type) {
+    case 'url': {
+      const url = nonEmpty(raw.url);
+      return url !== null && /^https?:\/\//.test(url) ? { type: 'url', url } : null;
+    }
+    case 'deeplink': {
+      const url = nonEmpty(raw.url);
+      return url === null ? null : { type: 'deeplink', url };
+    }
+    case 'tags': {
+      const tags: Record<string, string> = {};
+      if (isObject(raw.tags)) for (const [k, v] of Object.entries(raw.tags)) if (typeof v === 'string') tags[k] = v;
+      return { type: 'tags', tags };
+    }
+    case 'push_prompt':
+      return { type: 'push_prompt' };
+    case 'outcome': {
+      const name = nonEmpty(raw.name);
+      return name === null ? null : { type: 'outcome', name, value: finite(raw.value) };
+    }
+    default:
+      return { type: 'dismiss' };
+  }
+}
+
+/** Kart düğmelerinde renk alanı yoktur (`withColors` false). */
+function mapInAppButton(raw: JsonObject, withColors: boolean): InAppButton | null {
+  const id = nonEmpty(raw.id);
+  const action = mapInAppAction(raw.action);
+  if (id === null || action === null) return null;
+  return {
+    id,
+    text: typeof raw.text === 'string' ? raw.text : '',
+    action,
+    backgroundColor: withColors ? nonEmpty(raw.background_color) : null,
+    textColor: withColors ? nonEmpty(raw.text_color) : null,
+  };
+}
+
+function mapInAppBlock(raw: JsonObject): InAppBlock | null {
+  switch (raw.type) {
+    case 'image': {
+      const url = nonEmpty(raw.url);
+      return url === null ? null : { type: 'image', url, alt: nonEmpty(raw.alt) };
+    }
+    case 'title':
+    case 'body':
+      return { type: raw.type, text: typeof raw.text === 'string' ? raw.text : '' };
+    case 'button': {
+      const button = mapInAppButton(raw, true);
+      return button === null ? null : { type: 'button', ...button };
+    }
+    case 'carousel': {
+      const id = nonEmpty(raw.id);
+      if (id === null || !Array.isArray(raw.cards)) return null;
+      const cards: InAppCarouselCard[] = [];
+      for (const card of raw.cards) {
+        if (!isObject(card)) continue;
+        const cardId = nonEmpty(card.id);
+        if (cardId === null) continue;
+        cards.push({
+          id: cardId,
+          title: typeof card.title === 'string' ? card.title : '',
+          body: nonEmpty(card.body),
+          imageUrl: nonEmpty(card.image_url),
+          imageAlt: nonEmpty(card.image_alt),
+          button: isObject(card.button) ? mapInAppButton(card.button, false) : null,
+        });
+      }
+      return cards.length === 0 ? null : { type: 'carousel', id, cards };
+    }
+    default:
+      // Tanınmayan blok türü atlanır (ileri uyumluluk).
+      return null;
+  }
+}
+
+function mapInAppTriggers(raw: unknown): InAppTrigger[] {
+  return Array.isArray(raw) ? raw.filter(isObject).map(mapInAppTrigger) : [];
+}
+
+/** Sunucu in-app öğesi → köprü modeli; kimliksiz, görünümsüz veya içeriksiz HTML mesajı null (atlanır). */
+function mapInAppMessage(raw: WebInAppMessage): InAppMessage | null {
+  const item = raw as unknown as JsonObject;
+  const id = nonEmpty(item.id);
+  const display = item.display;
+  if (id === null || !isObject(display)) return null;
+  const contentType = display.content_type === 'html' ? 'html' : 'blocks';
+  const html = nonEmpty(display.html);
+  if (contentType === 'html' && (html === null || html.trim() === '')) return null;
+  const groups = Array.isArray(item.trigger_groups) ? item.trigger_groups.filter(Array.isArray).map(mapInAppTriggers) : [];
+  const triggerGroups = groups.length > 0 ? groups : [mapInAppTriggers(item.triggers)];
+  const layout = IN_APP_LAYOUTS.find((l) => l === display.layout) ?? 'modal';
+  return {
+    id,
+    priority: finite(item.priority) ?? 0,
+    triggers: triggerGroups[0],
+    triggerGroups,
+    variantId: nonEmpty(item.variant_id),
+    display: {
+      layout,
+      backgroundColor: nonEmpty(display.background_color),
+      textColor: nonEmpty(display.text_color),
+      dismissible: display.dismissible !== false,
+      autoDismissSeconds: positiveInt(display.auto_dismiss_seconds),
+      contentType,
+      blocks:
+        contentType === 'html' || !Array.isArray(display.blocks)
+          ? []
+          : display.blocks.filter(isObject).map(mapInAppBlock).filter((b): b is InAppBlock => b !== null),
+      html: contentType === 'html' ? html : null,
+      htmlHeight: contentType === 'html' ? positiveInt(display.html_height) : null,
+    },
+    remainingImpressions: finite(item.remaining_impressions) ?? 1,
+    minIntervalSeconds: finite(item.min_interval_seconds) ?? 0,
+    stopAfterInteraction: item.stop_after_interaction === true,
+    lastImpressionAt: millis(nonEmpty(item.last_impression_at)),
+    endAt: millis(nonEmpty(item.end_at)),
+    language: null,
+  };
+}
+
 function mapState(s: WebPushSubscriptionState): PushSubscriptionState {
   return { id: s.id, token: s.token, optedIn: s.optedIn, permission: s.permission === 'granted' };
 }
@@ -167,6 +350,8 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
   /** Engellenen ön plan bildirimleri (web'de sonradan gösterilemez). */
   private readonly preventedIds = new Set<string>();
   private serviceWorkerScope: string | undefined;
+  /** Son `placementsList` yanıtlarındaki Web SDK mesajları; raporlar bu nesnelerle yapılır. */
+  private readonly placementMessages = new Map<string, WebInAppMessage>();
 
   constructor(private readonly sdk: WebSdkInstance = WebSdk) {
     super();
@@ -449,6 +634,70 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
   /** Tarayıcı Geolocation izni; Web SDK önce açıklama kutusunu gösterir, vazgeçilirse tarayıcı istemi açılmaz. */
   async requestLocationPermission(options: { rationale?: string }): Promise<{ permission: boolean }> {
     return { permission: await this.sdk.Location.requestPermission(options.rationale) };
+  }
+
+  /** Web'de arka plan bölge izleme yoktur (ADR-0065): ayar etkisizdir, durum her zaman false. */
+  async setGeofencingEnabled(_options: { enabled: boolean }): Promise<void> {
+    return;
+  }
+
+  async isGeofencingEnabled(): Promise<{ enabled: boolean }> {
+    return { enabled: false };
+  }
+
+  /** Web SDK `refresh` başarı bilgisi döndürmez; yeni değerler yazıldığında bayrak gözlemcisi çağrılır. */
+  async featureFlagsRefresh(): Promise<{ success: boolean }> {
+    let success = false;
+    const remove = this.sdk.FeatureFlags.addObserver(() => {
+      success = true;
+    });
+    try {
+      await this.sdk.FeatureFlags.refresh();
+    } finally {
+      remove();
+    }
+    return { success };
+  }
+
+  async featureFlagsIsEnabled(options: { key: string; defaultValue: boolean }): Promise<{ enabled: boolean }> {
+    return { enabled: this.sdk.FeatureFlags.isEnabled(options.key, options.defaultValue === true) };
+  }
+
+  async featureFlagsGetValue(options: { key: string }): Promise<{ value: FeatureFlagValue }> {
+    return { value: this.sdk.FeatureFlags.getValue<FeatureFlagValue>(options.key) ?? null };
+  }
+
+  /** Anahtar ve hazırlık denetimi Web SDK'dadır; dönen mesajlar rapor çağrıları için saklanır. */
+  async placementsList(options: { key: string; limit: number }): Promise<{ messages: InAppMessage[] }> {
+    const messages: InAppMessage[] = [];
+    for (const raw of await this.sdk.Placements.list(options.key, { limit: options.limit })) {
+      const message = mapInAppMessage(raw);
+      if (message === null) continue;
+      this.placementMessages.delete(raw.id);
+      this.placementMessages.set(raw.id, raw);
+      messages.push(message);
+    }
+    for (const id of this.placementMessages.keys()) {
+      if (this.placementMessages.size <= MAX_PLACEMENT_CACHE) break;
+      this.placementMessages.delete(id);
+    }
+    return { messages };
+  }
+
+  // Raporlar yalnızca `placementsList` ile alınmış mesajlar için; tanınmayan kimlik sessizce yok sayılır.
+  async placementsReportImpression(options: { id: string }): Promise<void> {
+    const message = this.placementMessages.get(options.id);
+    if (message) this.sdk.Placements.reportImpression(message);
+  }
+
+  async placementsReportClick(options: { id: string; buttonId: string }): Promise<void> {
+    const message = this.placementMessages.get(options.id);
+    if (message) this.sdk.Placements.reportClick(message, options.buttonId);
+  }
+
+  async placementsReportDismiss(options: { id: string }): Promise<void> {
+    const message = this.placementMessages.get(options.id);
+    if (message) this.sdk.Placements.reportDismiss(message);
   }
 
   /** Live Activities bir iOS (ActivityKit) özelliğidir; web'de sessizce yok sayılmaz, açık hatayla reddedilir. */

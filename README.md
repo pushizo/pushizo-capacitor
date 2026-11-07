@@ -34,7 +34,8 @@ Pushizo'nun Capacitor (Ionic) eklentisi. Native Pushizo Android (`com.pushizo:pu
 - Kullanıcı: `login`/`logout` (identity verification `identityHash`), tag, alias, dil, e-posta ve SMS aboneliği
 - In-app mesajlar (tetik, ekran, duraklatma, tıklama ve yaşam döngüsü olayları; native çizim)
 - Bildirim kutusu (listeleme, okundu, tümünü okundu, arşiv, okunmamış sayısı)
-- Konum paylaşımı (yalnızca ön plan, açıklama + izin istemi; web'de `@pushizo/web`)
+- Konum paylaşımı (yalnızca ön plan, açıklama + izin istemi; web'de `@pushizo/web`) ve arka plan bölge izleme (Android/iOS)
+- Özellik bayrakları (`FeatureFlags`) ve gömülü yerleşimler (`Placements`; web'de `@pushizo/web`)
 - Özel olay (`Session.sendEvent`), KVKK/GDPR gizlilik onayı, günlük seviyesi, bildirim tepsisini temizleme
 
 ## Kurulum
@@ -264,6 +265,69 @@ await Pushizo.Location.setShared(false);                  // paylaşımı kapat�
 - **Web:** çağrılar `@pushizo/web` `Location` yüzeyine iletilir (tarayıcı Geolocation izni; açıklama kutusu Web SDK
   tarafından gösterilir, `initialize` öncesinde Web SDK hatası döner).
 
+### Arka plan bölge izleme
+
+Dashboard'da tanımlı coğrafi bölgelere giriş/çıkışı uygulama kapalıyken de yakalar ([ADR-0065](https://github.com/pushizo/pushizo/blob/main/docs/adr/0065-arka-plan-bolge-izleme.md)).
+İzlemeyi işletim sistemi yapar; sunucuya koordinat gitmez, yalnızca giriş/çıkış olayı bildirilir. Varsayılan **kapalıdır**.
+
+```ts
+await Pushizo.Location.setGeofencingEnabled(true);        // kalıcı tercih
+const on = await Pushizo.Location.isGeofencingEnabled();
+```
+
+- Üç koşul birlikte gerekir: `setGeofencingEnabled(true)`, `setShared(true)` ve arka plan konum izni (iOS "Her Zaman",
+  Android `ACCESS_BACKGROUND_LOCATION`). Köprü bu izni **istemez** ve manifest/Info.plist'e **eklemez**; `Info.plist`'e `NSLocationAlwaysAndWhenInUseUsageDescription`, Android manifest'ine `ACCESS_BACKGROUND_LOCATION` eklemek
+  ve izni istemek uygulamanın işidir.
+  Mağaza beyanları ve aydınlatma metni uygulama geliştiricisinin sorumluluğundadır.
+- `initialize` öncesinde `setGeofencingEnabled` `NOT_READY` ile reddedilir. `setShared(false)` veya gizlilik onayının geri
+  alınması kayıtlı bölgeleri kaldırır; tercih korunur.
+- **Android:** uygulamada `com.google.android.gms:play-services-location` bağımlılığı bulunmalıdır; yoksa yerel SDK uyarı
+  loglar ve izleme başlamaz.
+- **Web:** arka plan bölge izleme yoktur; `setGeofencingEnabled` etkisizdir, `isGeofencingEnabled()` her zaman `false` döner.
+
+### Özellik bayrakları
+
+Bir özelliği yeni sürüm yayımlamadan açıp kapatın, kademeli yayın yapın veya metin/sayı/JSON değerleri uzaktan yönetin
+([rehber](https://docs.pushizo.com/docs/guides/feature-flags)). Değerler yerel SDK'da oturum başında yenilenir ve cihazda
+saklanır; ağ yoksa son değer, hiç alınmadıysa koddaki varsayılan döner. Gizlilik onayı beklenirken istek gönderilmez.
+
+```ts
+if (await Pushizo.FeatureFlags.isEnabled('yeni_sepet')) showNewCart();
+const limit = await Pushizo.FeatureFlags.getValue('sepet_limiti', 10);   // metin, sayı, boolean, nesne veya dizi
+const refreshed = await Pushizo.FeatureFlags.refresh();                  // yeni değerler alındıysa true
+```
+
+`isEnabled(key, default = false)` ve `getValue(key, default = null)` yerel önbellekten okur; köprü asenkron olduğundan
+Promise döndürürler. Boş anahtar `TypeError` ile reddedilir.
+- **Web:** çağrılar `@pushizo/web` `FeatureFlags` yüzeyine iletilir; Web SDK yenileme sonucu döndürmediğinden `refresh()`
+  yeni değerlerin yazıldığını bayrak gözlemcisinden anlar.
+
+### Gömülü yerleşimler
+
+Uygulamanın ayırdığı bir alana (ana sayfa afişi, liste arası kart) dashboard'dan içerik gönderin
+([ADR-0068](https://github.com/pushizo/pushizo/blob/main/docs/adr/0068-gomulu-yerlesimler.md)). Köprü yalnızca modeli
+döndürür; çizim uygulamanındır.
+
+```ts
+const messages = await Pushizo.Placements.list('home_banner', { limit: 2 });   // InAppMessage[]
+for (const message of messages) {
+  render(message.display.blocks);                                            // title/body/image/button/carousel blokları veya display.html
+  await Pushizo.Placements.reportImpression(message);                        // içerik ekrana gelince
+}
+await Pushizo.Placements.reportClick(message, buttonId);                     // düğme tıklanınca (buttonId: blok/kart düğmesinin id'si)
+await Pushizo.Placements.reportDismiss(message);                             // kullanıcı kapatınca
+```
+
+- Anahtar `^[a-z][a-z0-9_.-]{0,63}$` kalıbına uymalı, `limit` 1-10 olmalıdır; aksi halde çağrı köprüye gitmeden
+  `TypeError`/`RangeError` ile reddedilir. Abonelik yoksa veya gizlilik onayı bekleniyorsa liste boştur.
+- `InAppMessage` alanları yerel modelle aynıdır (`id`, `priority`, `triggers`, `triggerGroups`, `variantId`, `display`,
+  `remainingImpressions`, `minIntervalSeconds`, `stopAfterInteraction`, `lastImpressionAt`, `endAt`, `language`); zamanlar
+  epoch milisaniyedir. Düğme aksiyonları (`url`, `deeplink`, `tags`, `push_prompt`, `outcome`, `dismiss`) uygulama
+  tarafından yürütülür.
+- Rapor çağrıları yerel tarafta son `list` yanıtlarındaki mesajı kimliğiyle bulur (en çok 50 mesaj saklanır); listeden
+  gelmeyen bir mesaj için rapor sessizce yok sayılır (debug log).
+- Ağ/sunucu hatasında Android boş liste döndürür; iOS, web çağrıyı hata koduyla reddeder.
+
 ### Gizlilik onayı (KVKK/GDPR)
 
 `requiresPrivacyConsent: true` ile başlatıldığında `await Pushizo.setConsentGiven(true)` çağrılana kadar hiçbir ağ çağrısı yapılmaz.
@@ -284,7 +348,7 @@ Hatalar `code` alanı taşır: `INVALID_ARGUMENT` (geçersiz e-posta/telefon, ek
 
 1. Firebase konsolunda Android uygulaması ekleyin, `google-services.json` dosyasını `android/app/` altına koyun. Capacitor şablonu `com.google.gms.google-services` eklentisini dosya varsa otomatik uygular.
 2. Pushizo dashboard'unda uygulamanın Android (FCM) kimlik bilgisi adımında Firebase servis hesabı JSON'unu yükleyin; kayıt sonrası otomatik doğrulanır (kurulum sihirbazında **Capacitor/Ionic** seçilebilir).
-3. Eklenti `com.pushizo:pushizo-android` artefaktına bağlıdır. Yayın öncesi monorepo kullanımında `sdk/android` içinde `gradle :pushizo:publishToMavenLocal` çalıştırın ve uygulamanın `android/build.gradle` dosyasındaki `allprojects.repositories` bloğuna `mavenLocal()` ekleyin. SDK sürümü `variables.gradle` içinde `pushizoAndroidVersion` ile değiştirilebilir.
+3. Eklenti `com.pushizo:pushizo-android:0.2.1` artefaktına bağlıdır (özellik bayrakları, yerleşimler ve bölge izleme bu sürümle gelir). Yayın öncesi monorepo kullanımında `sdk/android` içinde `gradle :pushizo:publishToMavenLocal` çalıştırın ve uygulamanın `android/build.gradle` dosyasındaki `allprojects.repositories` bloğuna `mavenLocal()` ekleyin. SDK sürümü `variables.gradle` içinde `pushizoAndroidVersion` ile değiştirilebilir.
 4. Android 13+ bildirim izni `Notifications.requestPermission()` ile istenir. Bildirim ikonu için `AndroidManifest.xml` içinde `com.pushizo.sdk.default_notification_icon` meta-data'sı verilebilir.
 
 Eklenti, JS ile yapılan ilk `initialize` ayarlarını (yalnızca uygulama kimliği ve herkese açık ayarlar) saklar; süreç bildirim tıklaması veya FCM mesajıyla yeniden başladığında SDK WebView yüklenmeden başlatılır, böylece tıklama ve `received` bildirimi kaybolmaz.
@@ -344,7 +408,7 @@ class NotificationService: UNNotificationServiceExtension {
 
 ## Web
 
-Web platformunda `@pushizo/web` kullanılır: `PushizoSDKWorker.js` dosyasını sitenizin köküne koyun ve gerekirse `initialize(appId, { web: { serviceWorkerPath: '/PushizoSDKWorker.js' } })` verin. Web'de `removeNotification`, `User.getEmails` ve `User.getSmsNumbers` yoktur (`UNAVAILABLE`); `clearAll` service worker bildirimlerini kapatır. `User.setPreferences` web'de güncel listeyi okuyup kategori/kanalı denetler, yazmayı web SDK'nın çevrimdışı kuyruğuna verir ve yazma sonrası listeyi döndürür (istek arka planda gönderilir).
+Web platformunda `@pushizo/web` kullanılır: `PushizoSDKWorker.js` dosyasını sitenizin köküne koyun ve gerekirse `initialize(appId, { web: { serviceWorkerPath: '/PushizoSDKWorker.js' } })` verin. Web'de `removeNotification`, `User.getEmails` ve `User.getSmsNumbers` yoktur (`UNAVAILABLE`); `clearAll` service worker bildirimlerini kapatır. `FeatureFlags` ve `Placements` Web SDK'ya iletilir (yerleşim modeli native ile aynı biçime çevrilir, `language` web'de null); arka plan bölge izleme web'de yoktur. `User.setPreferences` web'de güncel listeyi okuyup kategori/kanalı denetler, yazmayı web SDK'nın çevrimdışı kuyruğuna verir ve yazma sonrası listeyi döndürür (istek arka planda gönderilir).
 
 ## Geliştirme
 

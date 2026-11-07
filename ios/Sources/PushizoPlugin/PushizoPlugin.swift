@@ -63,6 +63,15 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "startDefaultLiveActivity", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setLocationShared", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "isLocationShared", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setGeofencingEnabled", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "isGeofencingEnabled", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "featureFlagsRefresh", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "featureFlagsIsEnabled", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "featureFlagsGetValue", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "placementsList", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "placementsReportImpression", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "placementsReportClick", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "placementsReportDismiss", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "chatStart", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "chatGetConfig", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "chatGetConversation", returnType: CAPPluginReturnPromise),
@@ -171,6 +180,15 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func startDefaultLiveActivity(_ call: CAPPluginCall) { dispatch(call) }
     @objc func setLocationShared(_ call: CAPPluginCall) { dispatch(call) }
     @objc func isLocationShared(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func setGeofencingEnabled(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func isGeofencingEnabled(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func featureFlagsRefresh(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func featureFlagsIsEnabled(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func featureFlagsGetValue(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func placementsList(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func placementsReportImpression(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func placementsReportClick(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func placementsReportDismiss(_ call: CAPPluginCall) { dispatch(call) }
     @objc func chatStart(_ call: CAPPluginCall) { dispatch(call) }
     @objc func chatGetConfig(_ call: CAPPluginCall) { dispatch(call) }
     @objc func chatGetConversation(_ call: CAPPluginCall) { dispatch(call) }

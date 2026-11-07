@@ -16,5 +16,5 @@ Pod::Spec.new do |s|
   s.swift_version    = '5.9'
   s.dependency 'Capacitor'
   # Monorepo içinde uygulama Podfile'ında: pod 'Pushizo', :path => '<repo>/sdk/ios'
-  s.dependency 'Pushizo', '~> 0.1'
+  s.dependency 'Pushizo', '~> 0.2'
 end

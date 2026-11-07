@@ -128,6 +128,54 @@ describe('native sözleşme', () => {
     expect(swift).toContain('Pushizo.Location.requestPermission(rationale: string("rationale")) { granted in ok(["permission": granted]) }');
   });
 
+  it('Bölge izleme, özellik bayrakları ve yerleşimler native SDK çağrılarına bağlı', () => {
+    expect(methods).toEqual(
+      expect.arrayContaining([
+        'setGeofencingEnabled', 'isGeofencingEnabled', 'featureFlagsRefresh', 'featureFlagsIsEnabled', 'featureFlagsGetValue',
+        'placementsList', 'placementsReportImpression', 'placementsReportClick', 'placementsReportDismiss',
+      ]),
+    );
+    const kt = read('android/src/main/java/com/pushizo/capacitor/PushizoBridgeCore.kt');
+    const swift = read('ios/Sources/PushizoPlugin/PushizoBridgeCore.swift');
+    expect(kt).toContain('Pushizo.Location.setGeofencingEnabled(args.optBoolean("enabled", false))');
+    expect(kt).toContain('"isGeofencingEnabled" -> reply.success(JSONObject().put("enabled", Pushizo.Location.isGeofencingEnabled))');
+    expect(kt).toContain('"featureFlagsRefresh" -> Pushizo.FeatureFlags.refresh { ok -> reply.success(JSONObject().put("success", ok)) }');
+    expect(kt).toContain('Pushizo.FeatureFlags.isEnabled(args.requireString("key"), args.optBoolean("defaultValue", false))');
+    expect(kt).toContain('Pushizo.FeatureFlags.getValue(args.requireString("key")).orNull()');
+    expect(kt).toContain('"placementsList" -> Pushizo.Placements.list(args.requireString("key"), args.optInt("limit", 1))');
+    expect(kt).toContain('Pushizo.Placements.reportImpression(it)');
+    expect(kt).toContain('Pushizo.Placements.reportClick(it, buttonId)');
+    expect(kt).toContain('Pushizo.Placements.reportDismiss(it)');
+    // Rapor çağrıları son `list` yanıtlarındaki mesajla yapılır (sınırlı önbellek); bulunamazsa yalnızca debug log.
+    expect(kt).toContain('private const val MAX_PLACEMENT_CACHE = 50');
+    expect(kt).toContain('HsLog.d("yerleşim mesajı bulunamadı: $id")');
+    expect(kt).toContain('fun HsInAppMessage.toBridgeJson(): JSONObject');
+    // Köprü arka plan konum izni istemez ve manifeste eklemez (ADR-0065 §2).
+    expect(kt).not.toContain('ACCESS_BACKGROUND_LOCATION');
+
+    expect(swift).toContain('Pushizo.Location.setGeofencingEnabled(args["enabled"] as? Bool ?? false)');
+    expect(swift).toContain('case "isGeofencingEnabled": ok(["enabled": Pushizo.Location.isGeofencingEnabled])');
+    expect(swift).toContain('let success = await Pushizo.FeatureFlags.refresh()');
+    expect(swift).toContain('Pushizo.FeatureFlags.isEnabled(key, default: args["defaultValue"] as? Bool ?? false)');
+    expect(swift).toContain('ok(["value": Self.orNull(Pushizo.FeatureFlags.value(key))])');
+    expect(swift).toContain('let messages = try await Pushizo.Placements.list(key, limit: limit)');
+    expect(swift).toContain('Pushizo.Placements.reportImpression(message)');
+    expect(swift).toContain('Pushizo.Placements.reportClick(message, buttonId: buttonId)');
+    expect(swift).toContain('Pushizo.Placements.reportDismiss(message)');
+    expect(swift).toContain('private static let maxPlacementCache = 50');
+    expect(swift).toContain('static func map(_ m: HSInAppMessage) -> [String: Any]');
+    expect(swift).not.toContain('requestAlwaysPermission');
+    expect(read('android/src/main/AndroidManifest.xml')).not.toContain('ACCESS_BACKGROUND_LOCATION');
+  });
+
+  it('yerel SDK bağımlılıkları bayrak/yerleşim/bölge izleme sunan sürümlerde (Android 0.2.1, iOS 0.2)', () => {
+    expect(read('android/build.gradle')).toContain("rootProject.ext.pushizoAndroidVersion : '0.2.1'");
+    expect(read('PushizoCapacitor.podspec')).toContain("s.dependency 'Pushizo', '~> 0.2'");
+    expect(read('Package.swift')).toContain('pushizo-ios.git", from: "0.2.0"');
+    const pkg = JSON.parse(read('package.json')) as { version: string };
+    expect(pkg.version).toBe('0.2.0');
+  });
+
   it('package.json dosya listesi ve native paket tanımları tutarlı', () => {
     const pkg = JSON.parse(read('package.json')) as { files: string[] };
     for (const f of pkg.files.filter((x) => x !== 'dist/')) expect(existsSync(join(root, f)), f).toBe(true);
