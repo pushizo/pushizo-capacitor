@@ -58,7 +58,7 @@
   },
   "peerDependencies": {
     "@capacitor/core": ">=6.0.0",
-    "@pushizo/web": "^0.1.0"
+    "@pushizo/web": "^0.2.0"
   },
   "devDependencies": {
     "@capacitor/core": "6.2.2",
