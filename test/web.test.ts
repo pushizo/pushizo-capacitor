@@ -121,7 +121,7 @@ function fakeWebSdk() {
       refresh: vi.fn(async () => {
         if (flagsUpdated) listeners.flags?.();
       }),
-      isEnabled: vi.fn((key: string, defaultValue = false) => (key === 'yeni_sepet' ? true : defaultValue)),
+      isEnabled: vi.fn((key: string, defaultValue: boolean = false): boolean => (key === 'yeni_sepet' ? true : defaultValue)),
       getValue: vi.fn((key: string, defaultValue?: unknown) => (key === 'tema' ? { renk: 'mavi' } : defaultValue)),
       addObserver: vi.fn((cb: Fn) => {
         listeners.flags = cb;
@@ -382,7 +382,7 @@ describe('PushizoWeb', () => {
     expect(sdk.Placements.reportDismiss).toHaveBeenCalledWith(serverPlacement);
 
     // Önbellek en çok 50 mesaj tutar; en eskiler düşer, yeniden listelenen güncel kalır.
-    sdk.Placements.list.mockResolvedValueOnce(Array.from({ length: 50 }, (_, i) => ({ ...serverPlacement, id: `m${i}` })) as never);
+    sdk.Placements.list.mockResolvedValueOnce(Array.from({ length: 50 }, (_, i) => ({ ...serverPlacement, id: `m${i}` })));
     await hs.Placements.list('home_banner');
     await hs.Placements.reportDismiss({ id: 'iam_1' });
     await hs.Placements.reportDismiss({ id: 'm0' });
