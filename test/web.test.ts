@@ -106,6 +106,28 @@ function fakeWebSdk() {
       archive: vi.fn(async () => undefined),
       unreadCount: vi.fn(async () => 4),
     },
+    ContentCards: {
+      list: vi.fn(async (_limit?: number) => ({ cards: [{
+          id: 'c1', messageId: 'm1', type: 'captioned_image', title: 'T', body: 'B', url: null, imageUrl: 'https://cdn/x.png',
+          buttonText: 'Aç', data: {}, pinned: true, priority: 10, viewed: false, clicked: false,
+          expiresAt: null, createdAt: '2026-11-01T10:00:00.000Z',
+        }], unviewedCount: 1 })),
+      logImpression: vi.fn(async (_id: string) => ({ ...{
+          id: 'c1', messageId: 'm1', type: 'captioned_image', title: 'T', body: 'B', url: null, imageUrl: 'https://cdn/x.png',
+          buttonText: 'Aç', data: {}, pinned: true, priority: 10, viewed: false, clicked: false,
+          expiresAt: null, createdAt: '2026-11-01T10:00:00.000Z',
+        }, viewed: true })),
+      logClick: vi.fn(async (_id: string) => ({ ...{
+          id: 'c1', messageId: 'm1', type: 'captioned_image', title: 'T', body: 'B', url: null, imageUrl: 'https://cdn/x.png',
+          buttonText: 'Aç', data: {}, pinned: true, priority: 10, viewed: false, clicked: false,
+          expiresAt: null, createdAt: '2026-11-01T10:00:00.000Z',
+        }, viewed: true, clicked: true })),
+      dismiss: vi.fn(async (_id: string) => ({
+          id: 'c1', messageId: 'm1', type: 'captioned_image', title: 'T', body: 'B', url: null, imageUrl: 'https://cdn/x.png',
+          buttonText: 'Aç', data: {}, pinned: true, priority: 10, viewed: false, clicked: false,
+          expiresAt: null, createdAt: '2026-11-01T10:00:00.000Z',
+        })),
+    },
     Debug: { setLogLevel: vi.fn() },
     Location: {
       setShared: vi.fn((shared: boolean) => {
@@ -454,6 +476,21 @@ describe('PushizoWeb', () => {
     expect((await hs.Inbox.markRead('i1')).readAt).toBe(Date.parse('2026-10-02T00:00:00.000Z'));
     expect(await hs.Inbox.markAllRead()).toBe(0);
     expect(await hs.Inbox.unreadCount()).toBe(4);
+  });
+
+  it('içerik kartları Web SDK üzerinden iletilir; zamanlar epoch milisaniye', async () => {
+    const { sdk, web } = fakeWebSdk();
+    const hs = coreFor(web);
+    const feed = await hs.ContentCards.list(20);
+    expect(sdk.ContentCards.list).toHaveBeenCalledWith(20);
+    expect(feed.unviewedCount).toBe(1);
+    expect(feed.cards[0]).toMatchObject({ type: 'captioned_image', buttonText: 'Aç', pinned: true, priority: 10 });
+    expect(feed.cards[0].createdAt).toBe(Date.parse('2026-11-01T10:00:00.000Z'));
+    expect((await hs.ContentCards.logImpression('c1')).viewed).toBe(true);
+    expect((await hs.ContentCards.logClick('c1')).clicked).toBe(true);
+    await hs.ContentCards.dismiss('c1');
+    expect(sdk.ContentCards.dismiss).toHaveBeenCalledWith('c1');
+    await expect(web.contentCardEvent({ id: 'c1', event: 'x' as never })).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
   });
 
   it('tercihler: ISO zamanı epoch milisaniyeye çevrilir; yazma kuyruğa verilir ve sonuç listesi döner', async () => {

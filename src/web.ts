@@ -8,6 +8,7 @@ import WebSdk from '@pushizo/web';
 import type {
   ForegroundLifecycleEvent as WebForegroundEvent,
   InAppMessage as WebInAppMessage,
+  ContentCard as WebContentCard,
   InboxItem as WebInboxItem,
   InboxPage as WebInboxPage,
   LogLevel as WebLogLevel,
@@ -32,6 +33,9 @@ import type {
   InAppLayout,
   InAppMessage,
   InAppTrigger,
+  ContentCard,
+  ContentCardEvent,
+  ContentCardFeed,
   InboxItem,
   InboxListOptions,
   InboxPage,
@@ -95,6 +99,26 @@ function mapInboxItem(item: WebInboxItem): InboxItem {
     archivedAt: millis(item.archivedAt),
     expiresAt: millis(item.expiresAt),
     createdAt: millis(item.createdAt),
+  };
+}
+
+function mapContentCard(card: WebContentCard): ContentCard {
+  return {
+    id: card.id,
+    messageId: card.messageId,
+    type: card.type,
+    title: card.title,
+    body: card.body,
+    url: card.url,
+    imageUrl: card.imageUrl,
+    buttonText: card.buttonText,
+    data: card.data ?? {},
+    pinned: card.pinned,
+    priority: card.priority,
+    viewed: card.viewed,
+    clicked: card.clicked,
+    expiresAt: millis(card.expiresAt),
+    createdAt: millis(card.createdAt),
   };
 }
 
@@ -620,6 +644,19 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
 
   async inboxUnreadCount(): Promise<{ unreadCount: number }> {
     return { unreadCount: await this.sdk.Inbox.unreadCount() };
+  }
+
+  async contentCardsList(options: { limit: number }): Promise<ContentCardFeed> {
+    const feed = await this.sdk.ContentCards.list(options.limit);
+    return { cards: feed.cards.map(mapContentCard), unviewedCount: feed.unviewedCount };
+  }
+
+  async contentCardEvent(options: { id: string; event: ContentCardEvent }): Promise<ContentCard> {
+    const cards = this.sdk.ContentCards;
+    if (options.event === 'impression') return mapContentCard(await cards.logImpression(options.id));
+    if (options.event === 'click') return mapContentCard(await cards.logClick(options.id));
+    if (options.event === 'dismiss') return mapContentCard(await cards.dismiss(options.id));
+    throw codedError('INVALID_ARGUMENT', 'Kart olayı impression, click veya dismiss olmalı.');
   }
 
   /** Konum paylaşımı Web SDK'ya iletilir (`init` öncesinde Web SDK hata fırlatır). */

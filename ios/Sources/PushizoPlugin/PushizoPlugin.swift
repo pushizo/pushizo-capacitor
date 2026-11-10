@@ -59,6 +59,8 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "inboxMarkAllRead", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "inboxArchive", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "inboxUnreadCount", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "contentCardsList", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "contentCardEvent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setupDefaultLiveActivity", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "startDefaultLiveActivity", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setLocationShared", returnType: CAPPluginReturnPromise),
@@ -176,6 +178,8 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func inboxMarkAllRead(_ call: CAPPluginCall) { dispatch(call) }
     @objc func inboxArchive(_ call: CAPPluginCall) { dispatch(call) }
     @objc func inboxUnreadCount(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func contentCardsList(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func contentCardEvent(_ call: CAPPluginCall) { dispatch(call) }
     @objc func setupDefaultLiveActivity(_ call: CAPPluginCall) { dispatch(call) }
     @objc func startDefaultLiveActivity(_ call: CAPPluginCall) { dispatch(call) }
     @objc func setLocationShared(_ call: CAPPluginCall) { dispatch(call) }

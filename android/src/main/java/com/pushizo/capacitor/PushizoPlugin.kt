@@ -98,6 +98,8 @@ class PushizoPlugin : Plugin() {
     @PluginMethod fun inboxMarkAllRead(call: PluginCall) = dispatch(call)
     @PluginMethod fun inboxArchive(call: PluginCall) = dispatch(call)
     @PluginMethod fun inboxUnreadCount(call: PluginCall) = dispatch(call)
+    @PluginMethod fun contentCardsList(call: PluginCall) = dispatch(call)
+    @PluginMethod fun contentCardEvent(call: PluginCall) = dispatch(call)
     @PluginMethod fun setupDefaultLiveActivity(call: PluginCall) = dispatch(call)
     @PluginMethod fun startDefaultLiveActivity(call: PluginCall) = dispatch(call)
     @PluginMethod fun setLocationShared(call: PluginCall) = dispatch(call)

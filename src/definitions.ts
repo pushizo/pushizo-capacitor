@@ -115,6 +115,36 @@ export interface InboxPage {
   hasMore: boolean;
 }
 
+/** İçerik kartı türü (ADR-0082). */
+export type ContentCardType = 'classic' | 'captioned_image' | 'image_only';
+
+/** İçerik kartı; zamanlar epoch milisaniyedir. Akış sabitlenmiş → öncelik → yeni sırasıyla gelir. */
+export interface ContentCard {
+  id: string;
+  messageId: string | null;
+  type: ContentCardType;
+  title: string | null;
+  body: string | null;
+  url: string | null;
+  imageUrl: string | null;
+  buttonText: string | null;
+  data: Record<string, string>;
+  pinned: boolean;
+  priority: number;
+  viewed: boolean;
+  clicked: boolean;
+  expiresAt: number | null;
+  createdAt: number | null;
+}
+
+export interface ContentCardFeed {
+  cards: ContentCard[];
+  unviewedCount: number;
+}
+
+/** Kart olayı: gösterim, tıklama veya kapatma. */
+export type ContentCardEvent = 'impression' | 'click' | 'dismiss';
+
 export interface InboxListOptions {
   /** 1-200 (varsayılan 50). */
   limit?: number;
@@ -454,6 +484,10 @@ export interface PushizoPlugin {
   inboxMarkAllRead(): Promise<{ unreadCount: number }>;
   inboxArchive(options: { id: string }): Promise<void>;
   inboxUnreadCount(): Promise<{ unreadCount: number }>;
+
+  /** İçerik kartları (ADR-0082): `limit` 1-100. */
+  contentCardsList(options: { limit: number }): Promise<ContentCardFeed>;
+  contentCardEvent(options: { id: string; event: ContentCardEvent }): Promise<ContentCard>;
 
   /** Canlı sohbet (ADR-0040; Android ve iOS). Web'de `PLATFORM_NOT_SUPPORTED` (web'de sohbet `@pushizo/web` widget'ıdır). */
   chatStart(options: ChatStartOptions): Promise<ChatIdentifyResult>;
