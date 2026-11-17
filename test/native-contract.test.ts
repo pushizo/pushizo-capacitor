@@ -313,12 +313,12 @@ describe('native sözleşme', () => {
     }
   });
 
-  it('yerel SDK bağımlılıkları bayrak/yerleşim/bölge izleme sunan sürümlerde (Android 0.2.1, iOS 0.2)', () => {
-    expect(read('android/build.gradle')).toContain("rootProject.ext.pushizoAndroidVersion : '0.2.1'");
-    expect(read('PushizoCapacitor.podspec')).toContain("s.dependency 'Pushizo', '~> 0.2'");
-    expect(read('Package.swift')).toContain('pushizo-ios.git", from: "0.2.0"');
+  it('yerel SDK bağımlılıkları bayrak/yerleşim/bölge izleme sunan sürümlerde (Android 0.3.0, iOS 0.2)', () => {
+    expect(read('android/build.gradle')).toContain("rootProject.ext.pushizoAndroidVersion : '0.3.0'");
+    expect(read('PushizoCapacitor.podspec')).toContain("s.dependency 'Pushizo', '~> 0.3'");
+    expect(read('Package.swift')).toContain('pushizo-ios.git", from: "0.3.0"');
     const pkg = JSON.parse(read('package.json')) as { version: string };
-    expect(pkg.version).toBe('0.2.0');
+    expect(pkg.version).toBe('0.3.0');
   });
 
   it('package.json dosya listesi ve native paket tanımları tutarlı', () => {

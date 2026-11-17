@@ -1,6 +1,6 @@
 {
   "name": "@pushizo/capacitor",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Pushizo Capacitor (Ionic) eklentisi: push bildirimi, kullanıcı/tag, e-posta/SMS, in-app mesaj ve bildirim kutusu",
   "license": "MIT",
   "author": "Pushizo <bildirim@pushizo.com>",
@@ -58,7 +58,7 @@
   },
   "peerDependencies": {
     "@capacitor/core": ">=6.0.0",
-    "@pushizo/web": "^0.2.0"
+    "@pushizo/web": "^0.3.0"
   },
   "devDependencies": {
     "@capacitor/core": "6.2.2",
