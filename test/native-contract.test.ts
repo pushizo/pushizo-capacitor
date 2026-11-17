@@ -97,6 +97,33 @@ describe('native sözleşme', () => {
     expect(kt).toContain('const val LIVE_ACTIVITIES_IOS_ONLY = "Live Activities yalnızca iOS\'ta desteklenir"');
   });
 
+  it('Android teslimat güçlendirme: native Pushizo.Delivery çağrılarına bağlı; iOS zararsız yanıt verir', () => {
+    expect(methods).toEqual(
+      expect.arrayContaining(['deliveryStatus', 'deliveryShouldShowGuidance', 'deliveryOpenSettings', 'deliveryShowGuidance']),
+    );
+    const kt = read('android/src/main/java/com/pushizo/capacitor/PushizoBridgeCore.kt');
+    expect(kt).toContain('"deliveryStatus" -> reply.success(Pushizo.Delivery.status()?.toJson() ?: JSONObject().put("supported", false))');
+    expect(kt).toContain('Pushizo.Delivery.shouldShowGuidance(args.optInt("minIntervalDays", 14))');
+    expect(kt).toContain('Pushizo.Delivery.openSettings(activityProvider?.invoke() ?: context, deliverySetting(args.optStringOrNull("setting")))');
+    expect(kt).toContain('Pushizo.Delivery.showGuidance(activity, deliverySetting(args.optStringOrNull("setting")), args.optStringOrNull("message")) { opened ->');
+    // Activity yoksa diyalog gösterilmez; hata yerine false döner.
+    expect(kt).toContain('if (activity == null) reply.success(JSONObject().put("opened", false))');
+    // Köprü pil optimizasyonu iznini istemez (ADR-0092 §3).
+    expect(kt).not.toContain('REQUEST_IGNORE_BATTERY_OPTIMIZATIONS');
+    expect(read('android/src/main/java/com/pushizo/capacitor/PushizoPlugin.kt')).toContain('core.activityProvider = { activity }');
+    // TS `DeliveryStatus` alanlarının tümü native JSON'da bulunur.
+    const defs = read('src/definitions.ts');
+    const fields = [...defs.slice(defs.indexOf('export interface DeliveryStatus {')).split('\n}')[0].matchAll(/^\s{2}([a-zA-Z]+): /gm)].map((m) => m[1]);
+    expect(fields).toHaveLength(17);
+    const json = kt.slice(kt.indexOf('fun HsDeliveryStatus.toJson()'), kt.indexOf('fun HsNotification.toJson()'));
+    for (const field of fields) expect(json.includes(`.put("${field}", `), field).toBe(true);
+
+    const swift = read('ios/Sources/PushizoPlugin/PushizoBridgeCore.swift');
+    expect(swift).toContain('case "deliveryStatus": ok(["supported": false])');
+    expect(swift).toContain('case "deliveryShouldShowGuidance": ok(["show": false])');
+    expect(swift).toContain('case "deliveryOpenSettings", "deliveryShowGuidance": ok(["opened": false])');
+  });
+
   it('Konum: native SDK Location çağrılarına bağlı; Android izni manifest, açıklama ve Capacitor izin API akışıyla ister', () => {
     expect(methods).toEqual(expect.arrayContaining(['setLocationShared', 'isLocationShared', 'requestLocationPermission']));
     const kt = read('android/src/main/java/com/pushizo/capacitor/PushizoBridgeCore.kt');

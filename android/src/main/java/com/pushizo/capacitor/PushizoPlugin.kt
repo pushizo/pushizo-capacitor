@@ -33,6 +33,7 @@ class PushizoPlugin : Plugin() {
         core = PushizoBridgeCore(context.applicationContext) { type, payload ->
             notifyListeners(type, JSObject.fromJSONObject(payload), type == "click" || type == "chatOpen")
         }
+        core.activityProvider = { activity }
         core.attachIfInitialized()
     }
 
@@ -106,6 +107,10 @@ class PushizoPlugin : Plugin() {
     @PluginMethod fun isLocationShared(call: PluginCall) = dispatch(call)
     @PluginMethod fun setGeofencingEnabled(call: PluginCall) = dispatch(call)
     @PluginMethod fun isGeofencingEnabled(call: PluginCall) = dispatch(call)
+    @PluginMethod fun deliveryStatus(call: PluginCall) = dispatch(call)
+    @PluginMethod fun deliveryShouldShowGuidance(call: PluginCall) = dispatch(call)
+    @PluginMethod fun deliveryOpenSettings(call: PluginCall) = dispatch(call)
+    @PluginMethod fun deliveryShowGuidance(call: PluginCall) = dispatch(call)
     @PluginMethod fun featureFlagsRefresh(call: PluginCall) = dispatch(call)
     @PluginMethod fun featureFlagsIsEnabled(call: PluginCall) = dispatch(call)
     @PluginMethod fun featureFlagsGetValue(call: PluginCall) = dispatch(call)

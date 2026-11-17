@@ -67,6 +67,10 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "isLocationShared", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setGeofencingEnabled", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "isGeofencingEnabled", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deliveryStatus", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deliveryShouldShowGuidance", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deliveryOpenSettings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deliveryShowGuidance", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "featureFlagsRefresh", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "featureFlagsIsEnabled", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "featureFlagsGetValue", returnType: CAPPluginReturnPromise),
@@ -186,6 +190,10 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func isLocationShared(_ call: CAPPluginCall) { dispatch(call) }
     @objc func setGeofencingEnabled(_ call: CAPPluginCall) { dispatch(call) }
     @objc func isGeofencingEnabled(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func deliveryStatus(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func deliveryShouldShowGuidance(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func deliveryOpenSettings(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func deliveryShowGuidance(_ call: CAPPluginCall) { dispatch(call) }
     @objc func featureFlagsRefresh(_ call: CAPPluginCall) { dispatch(call) }
     @objc func featureFlagsIsEnabled(_ call: CAPPluginCall) { dispatch(call) }
     @objc func featureFlagsGetValue(_ call: CAPPluginCall) { dispatch(call) }

@@ -36,6 +36,8 @@ import type {
   ContentCard,
   ContentCardEvent,
   ContentCardFeed,
+  DeliverySetting,
+  DeliveryStatus,
   InboxItem,
   InboxListOptions,
   InboxPage,
@@ -680,6 +682,23 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
 
   async isGeofencingEnabled(): Promise<{ enabled: boolean }> {
     return { enabled: false };
+  }
+
+  /** Android teslimat güçlendirme (ADR-0092) web'de yoktur: durum "desteklenmiyor", diğerleri etkisiz false. */
+  async deliveryStatus(): Promise<Partial<DeliveryStatus>> {
+    return { supported: false };
+  }
+
+  async deliveryShouldShowGuidance(_options: { minIntervalDays: number }): Promise<{ show: boolean }> {
+    return { show: false };
+  }
+
+  async deliveryOpenSettings(_options: { setting: DeliverySetting }): Promise<{ opened: boolean }> {
+    return { opened: false };
+  }
+
+  async deliveryShowGuidance(_options: { setting: DeliverySetting; message?: string }): Promise<{ opened: boolean }> {
+    return { opened: false };
   }
 
   /** Web SDK `refresh` başarı bilgisi döndürmez; yeni değerler yazıldığında bayrak gözlemcisi çağrılır. */

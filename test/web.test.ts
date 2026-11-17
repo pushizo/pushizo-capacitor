@@ -314,6 +314,15 @@ describe('PushizoWeb', () => {
     expect(await hs.Location.isGeofencingEnabled()).toBe(false);
   });
 
+  it('Delivery: web\'de Android teslimat güçlendirme yoktur; durum desteklenmiyor, çağrılar false (init öncesinde de)', async () => {
+    const { web } = fakeWebSdk();
+    const hs = coreFor(web);
+    expect(await hs.Delivery.status()).toMatchObject({ supported: false, risk: 'none', restricted: false, recommendedSettings: [] });
+    expect(await hs.Delivery.shouldShowGuidance()).toBe(false);
+    expect(await hs.Delivery.openSettings('auto_start')).toBe(false);
+    expect(await hs.Delivery.showGuidance({ message: 'Bildirimleri kaçırmayın' })).toBe(false);
+  });
+
   it('özellik bayrakları Web SDK FeatureFlags yüzeyine iletilir; yenileme başarısı gözlemciden anlaşılır', async () => {
     const { sdk, web, setFlagsUpdated } = fakeWebSdk();
     const hs = coreFor(web);
