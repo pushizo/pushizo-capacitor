@@ -24,6 +24,7 @@ import org.json.JSONObject
         // Konum izinleri ayrı takma adlarla tanımlanır; yalnızca uygulama manifest'inde bulunanlar istenir.
         Permission(strings = [Manifest.permission.ACCESS_COARSE_LOCATION], alias = PushizoPlugin.LOCATION_COARSE_ALIAS),
         Permission(strings = [Manifest.permission.ACCESS_FINE_LOCATION], alias = PushizoPlugin.LOCATION_FINE_ALIAS),
+        Permission(strings = [Manifest.permission.ACCESS_BACKGROUND_LOCATION], alias = PushizoPlugin.LOCATION_BACKGROUND_ALIAS),
     ],
 )
 class PushizoPlugin : Plugin() {
@@ -59,6 +60,7 @@ class PushizoPlugin : Plugin() {
 
     @PluginMethod fun initialize(call: PluginCall) = dispatch(call)
     @PluginMethod fun setConsentGiven(call: PluginCall) = dispatch(call)
+    @PluginMethod fun isInitialized(call: PluginCall) = dispatch(call)
     @PluginMethod fun login(call: PluginCall) = dispatch(call)
     @PluginMethod fun updateUserJwt(call: PluginCall) = dispatch(call)
     @PluginMethod fun logout(call: PluginCall) = dispatch(call)
@@ -76,6 +78,10 @@ class PushizoPlugin : Plugin() {
     @PluginMethod fun getContacts(call: PluginCall) = dispatch(call)
     @PluginMethod fun getPreferences(call: PluginCall) = dispatch(call)
     @PluginMethod fun setPreferences(call: PluginCall) = dispatch(call)
+    @PluginMethod fun setAdsPersonalizationConsent(call: PluginCall) = dispatch(call)
+    @PluginMethod fun getConsents(call: PluginCall) = dispatch(call)
+    @PluginMethod fun registerAdm(call: PluginCall) = dispatch(call)
+    @PluginMethod fun setAdvertisingId(call: PluginCall) = dispatch(call)
     @PluginMethod fun getPushSubscription(call: PluginCall) = dispatch(call)
     @PluginMethod fun optIn(call: PluginCall) = dispatch(call)
     @PluginMethod fun optOut(call: PluginCall) = dispatch(call)
@@ -83,6 +89,7 @@ class PushizoPlugin : Plugin() {
     @PluginMethod fun clearAll(call: PluginCall) = dispatch(call)
     @PluginMethod fun removeNotification(call: PluginCall) = dispatch(call)
     @PluginMethod fun removeGroupedNotifications(call: PluginCall) = dispatch(call)
+    @PluginMethod fun setBadgeCount(call: PluginCall) = dispatch(call)
     @PluginMethod fun setForegroundHandlerEnabled(call: PluginCall) = dispatch(call)
     @PluginMethod fun displayNotification(call: PluginCall) = dispatch(call)
     @PluginMethod fun sendEvent(call: PluginCall) = dispatch(call)
@@ -105,6 +112,7 @@ class PushizoPlugin : Plugin() {
     @PluginMethod fun startDefaultLiveActivity(call: PluginCall) = dispatch(call)
     @PluginMethod fun setLocationShared(call: PluginCall) = dispatch(call)
     @PluginMethod fun isLocationShared(call: PluginCall) = dispatch(call)
+    @PluginMethod fun getLocationPermission(call: PluginCall) = dispatch(call)
     @PluginMethod fun setGeofencingEnabled(call: PluginCall) = dispatch(call)
     @PluginMethod fun isGeofencingEnabled(call: PluginCall) = dispatch(call)
     @PluginMethod fun deliveryStatus(call: PluginCall) = dispatch(call)
@@ -133,6 +141,7 @@ class PushizoPlugin : Plugin() {
     @PluginMethod fun chatStopListening(call: PluginCall) = dispatch(call)
     @PluginMethod fun chatAttachmentUrl(call: PluginCall) = dispatch(call)
     @PluginMethod fun chatGetVisitorId(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatIsListening(call: PluginCall) = dispatch(call)
 
     /** Android 13+ POST_NOTIFICATIONS istemi; önceki sürümlerde çalışma zamanı izni yoktur, mevcut durum döner. */
     @PluginMethod
@@ -168,9 +177,33 @@ class PushizoPlugin : Plugin() {
         call.resolve(JSObject.fromJSONObject(core.onLocationPermissionResult()))
     }
 
+    /**
+     * Arka plan konum izni (ADR-0065): açıklama diyaloğu ve manifest denetimi [PushizoBridgeCore] içindedir; sistem
+     * izni Capacitor izin API'siyle istenir. Android 10 öncesinde çekirdek normal konum izinlerini ister.
+     */
+    @PluginMethod
+    fun requestBackgroundLocationPermission(call: PluginCall) {
+        core.requestBackgroundLocationPermission(activity, call.data, reply(call)) { permissions ->
+            val aliases = permissions.map {
+                when (it) {
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION -> LOCATION_BACKGROUND_ALIAS
+                    Manifest.permission.ACCESS_FINE_LOCATION -> LOCATION_FINE_ALIAS
+                    else -> LOCATION_COARSE_ALIAS
+                }
+            }
+            requestPermissionForAliases(aliases.toTypedArray(), call, "onBackgroundLocationPermission")
+        }
+    }
+
+    @PermissionCallback
+    private fun onBackgroundLocationPermission(call: PluginCall) {
+        call.resolve(JSObject.fromJSONObject(core.onBackgroundLocationPermissionResult()))
+    }
+
     companion object {
         const val PERMISSION_ALIAS = "notifications"
         const val LOCATION_COARSE_ALIAS = "locationCoarse"
         const val LOCATION_FINE_ALIAS = "locationFine"
+        const val LOCATION_BACKGROUND_ALIAS = "locationBackground"
     }
 }

@@ -94,6 +94,15 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "chatAttachmentUrl", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "chatGetVisitorId", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestLocationPermission", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "isInitialized", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setAdsPersonalizationConsent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getConsents", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "registerAdm", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setAdvertisingId", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setBadgeCount", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getLocationPermission", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestBackgroundLocationPermission", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatIsListening", returnType: CAPPluginReturnPromise),
     ]
 
     private var core: PushizoBridgeCore!
@@ -217,4 +226,13 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func chatAttachmentUrl(_ call: CAPPluginCall) { dispatch(call) }
     @objc func chatGetVisitorId(_ call: CAPPluginCall) { dispatch(call) }
     @objc func requestLocationPermission(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func isInitialized(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func setAdsPersonalizationConsent(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func getConsents(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func registerAdm(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func setAdvertisingId(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func setBadgeCount(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func getLocationPermission(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func requestBackgroundLocationPermission(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatIsListening(_ call: CAPPluginCall) { dispatch(call) }
 }

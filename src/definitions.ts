@@ -29,6 +29,17 @@ export interface LoginOptions {
   identityHash?: string;
   /** SDK isteklerinde `Authorization: Bearer` başlığıyla gider; süresi dolunca `updateUserJwt` ile yenilenir. */
   jwt?: string;
+  /** Girişle birlikte ayarlanan profil; geçersiz e-posta veya telefon girişten önce `INVALID_ARGUMENT` ile reddedilir. */
+  profile?: UserProfile;
+}
+
+/** `Pushizo.login` ile tek çağrıda ayarlanan profil alanları (native `HsUserProfile`). */
+export interface UserProfile {
+  email?: string;
+  /** E.164 biçiminde telefon numarası. */
+  sms?: string;
+  tags?: Record<string, InAppTriggerValue>;
+  aliases?: Record<string, string>;
 }
 
 /** Bildirim içeriği (native `HsNotification` / `HSNotification`). */
@@ -182,6 +193,16 @@ export interface PreferenceCategory {
 export interface UserPreferences {
   preferences: UserPreference[];
   categories: PreferenceCategory[];
+}
+
+/** Rıza kaydı (`User.getConsents`; ADR-0037): `ads_personalization` gibi ayrılmış amaç anahtarları. */
+export interface UserConsent {
+  purpose: string;
+  granted: boolean;
+  /** Kaydı yazan taraf (`sdk`, `api`, `dashboard` …); kayıt yoksa null. */
+  source: string | null;
+  /** Epoch milisaniye; kayıt yoksa null. */
+  updatedAt: number | null;
 }
 
 /** `User.setPreferences` girdisi; `channel` verilmezse veya null ise tüm kanallar. */
@@ -489,6 +510,14 @@ export interface ChatEventMap {
   open: { conversationId: string; seq: number };
 }
 
+/** Native köprüye giden doğrulanmış profil (etiket değerleri metne çevrilmiştir). */
+export interface NativeUserProfile {
+  email?: string;
+  sms?: string;
+  tags?: Record<string, string>;
+  aliases?: Record<string, string>;
+}
+
 /**
  * Ham Capacitor eklenti yüzeyi (native köprü). Uygulamalar doğrudan `Pushizo` cephesini
  * (`index.ts`) kullanır; bu arayüz cephe ve testler içindir.
@@ -496,7 +525,8 @@ export interface ChatEventMap {
 export interface PushizoPlugin {
   initialize(options: InitializeOptions): Promise<void>;
   setConsentGiven(options: { given: boolean }): Promise<void>;
-  login(options: { externalId: string; identityHash?: string; jwt?: string }): Promise<void>;
+  isInitialized(): Promise<{ initialized: boolean }>;
+  login(options: { externalId: string; identityHash?: string; jwt?: string; profile?: NativeUserProfile }): Promise<void>;
   updateUserJwt(options: { jwt: string }): Promise<void>;
   logout(): Promise<void>;
 
@@ -514,6 +544,13 @@ export interface PushizoPlugin {
   getContacts(): Promise<{ emails: string[]; smsNumbers: string[] }>;
   getPreferences(): Promise<UserPreferences>;
   setPreferences(options: { preferences: PreferenceInput[] }): Promise<UserPreferences>;
+  /** Reklam kişiselleştirme rızası (ADR-0037); güncel tercih listesini döndürür. */
+  setAdsPersonalizationConsent(options: { granted: boolean }): Promise<UserPreferences>;
+  getConsents(): Promise<{ consents: UserConsent[] }>;
+  /** Yalnızca Android (Fire OS ADM kayıt kimliği); iOS ve web'de etkisizdir. */
+  registerAdm(options: { token: string }): Promise<void>;
+  /** Mobil reklam kimliği (GAID/IDFA); `null` sunucudaki kaydı siler. Web'de etkisizdir. */
+  setAdvertisingId(options: { id: string | null }): Promise<void>;
 
   getPushSubscription(): Promise<PushSubscriptionState>;
   optIn(): Promise<void>;
@@ -525,6 +562,8 @@ export interface PushizoPlugin {
   /** `id`: Android tepsi kimliği; `identifier`: iOS `UNNotificationRequest.identifier`. */
   removeNotification(options: { id?: number; identifier?: string }): Promise<void>;
   removeGroupedNotifications(options: { group: string }): Promise<void>;
+  /** Yalnızca iOS (uygulama rozeti); Android ve web'de etkisizdir. */
+  setBadgeCount(options: { count: number }): Promise<void>;
   setForegroundHandlerEnabled(options: { enabled: boolean }): Promise<void>;
   displayNotification(options: { notificationId: string }): Promise<void>;
 
@@ -565,11 +604,17 @@ export interface PushizoPlugin {
   chatStopListening(): Promise<void>;
   chatAttachmentUrl(options: { attachmentId: string; download?: boolean }): Promise<{ url: string }>;
   chatGetVisitorId(): Promise<{ visitorId: string | null }>;
+  /** Canlı dinleme açık mı; web'de her zaman false. */
+  chatIsListening(): Promise<{ listening: boolean }>;
 
   /** Konum paylaşımı (v2 Faz 17b); web'de `@pushizo/web` `Location` yüzeyine iletilir. */
   setLocationShared(options: { shared: boolean }): Promise<void>;
   isLocationShared(): Promise<{ shared: boolean }>;
   requestLocationPermission(options: { rationale?: string }): Promise<{ permission: boolean }>;
+  /** Konum izni durumu: `permission` ön plan, `background` arka plan ("her zaman"). Web'de ikisi de false. */
+  getLocationPermission(): Promise<{ permission: boolean; background: boolean }>;
+  /** Arka plan konum izni (Android `ACCESS_BACKGROUND_LOCATION`, iOS "her zaman"); web'de false. */
+  requestBackgroundLocationPermission(options: { rationale?: string }): Promise<{ permission: boolean }>;
   /** Arka plan bölge izleme (ADR-0065; Android ve iOS). Web'de yoktur: ayar etkisizdir, durum her zaman false. */
   setGeofencingEnabled(options: { enabled: boolean }): Promise<void>;
   isGeofencingEnabled(): Promise<{ enabled: boolean }>;

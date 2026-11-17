@@ -44,9 +44,11 @@ import type {
   InitializeOptions,
   LiveActivityValue,
   LogLevel,
+  NativeUserProfile,
   PreferenceInput,
   PushSubscriptionState,
   RawForegroundEvent,
+  UserConsent,
   UserPreference,
   UserPreferences,
 } from './definitions.js';
@@ -371,6 +373,7 @@ function mapState(s: WebPushSubscriptionState): PushSubscriptionState {
 
 export class PushizoWeb extends WebPlugin implements PushizoPlugin {
   private listenersAttached = false;
+  private initialized = false;
   private lastPermission: boolean | null = null;
   private foregroundSeq = 0;
   /** Engellenen ön plan bildirimleri (web'de sonradan gösterilemez). */
@@ -395,6 +398,11 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
       allowLocalhostAsSecureOrigin: options.web?.allowLocalhostAsSecureOrigin,
     });
     this.attachListeners();
+    this.initialized = true;
+  }
+
+  async isInitialized(): Promise<{ initialized: boolean }> {
+    return { initialized: this.initialized };
   }
 
   private attachListeners(): void {
@@ -450,8 +458,15 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
     await this.sdk.setConsentGiven(options.given);
   }
 
-  async login(options: { externalId: string; identityHash?: string; jwt?: string }): Promise<void> {
+  /** Profil alanları girişten sonra Web SDK'nın ilgili çağrılarına iletilir (native `login(id, profile)` ile aynı sıra). */
+  async login(options: { externalId: string; identityHash?: string; jwt?: string; profile?: NativeUserProfile }): Promise<void> {
     await this.sdk.login(options.externalId, { identityHash: options.identityHash, jwt: options.jwt });
+    const profile = options.profile;
+    if (!profile) return;
+    if (profile.email) this.sdk.User.addEmail(profile.email);
+    if (profile.sms) this.sdk.User.addSms(profile.sms);
+    if (profile.tags && Object.keys(profile.tags).length > 0) this.sdk.User.addTags(profile.tags);
+    if (profile.aliases && Object.keys(profile.aliases).length > 0) this.sdk.User.addAliases(profile.aliases);
   }
 
   async updateUserJwt(options: { jwt: string }): Promise<void> {
@@ -532,6 +547,38 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
     }
     this.sdk.User.setPreferences(inputs.map((p) => ({ category: p.category, optedIn: p.optedIn, channel: p.channel ?? null })));
     return applyPreferenceInputs(current, inputs, Date.now());
+  }
+
+  /**
+   * Web SDK rızayı tercihler gibi çevrimdışı kuyruğa alır ve sonuç döndürmez; native ile aynı sözleşme için güncel
+   * tercih listesi döndürülür (abonelik ve sahiplik kanıtı gerekir).
+   */
+  async setAdsPersonalizationConsent(options: { granted: boolean }): Promise<UserPreferences> {
+    const current = mapPreferences(await this.sdk.User.getPreferences());
+    this.sdk.User.setAdsPersonalizationConsent(options.granted === true);
+    return current;
+  }
+
+  async getConsents(): Promise<{ consents: UserConsent[] }> {
+    const consents = await this.sdk.User.getConsents();
+    return {
+      consents: consents.map((c) => ({ purpose: c.purpose, granted: c.granted === true, source: c.source ?? null, updatedAt: millis(c.updatedAt) })),
+    };
+  }
+
+  /** Fire OS ADM yalnızca Android'dedir: web'de etkisiz. */
+  async registerAdm(_options: { token: string }): Promise<void> {
+    return;
+  }
+
+  /** Web'de mobil reklam kimliği yoktur: etkisiz. */
+  async setAdvertisingId(_options: { id: string | null }): Promise<void> {
+    return;
+  }
+
+  /** Uygulama rozeti yalnızca iOS'tadır: web'de etkisiz. */
+  async setBadgeCount(_options: { count: number }): Promise<void> {
+    return;
   }
 
   async getPushSubscription(): Promise<PushSubscriptionState> {
@@ -673,6 +720,15 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
   /** Tarayıcı Geolocation izni; Web SDK önce açıklama kutusunu gösterir, vazgeçilirse tarayıcı istemi açılmaz. */
   async requestLocationPermission(options: { rationale?: string }): Promise<{ permission: boolean }> {
     return { permission: await this.sdk.Location.requestPermission(options.rationale) };
+  }
+
+  /** Web'de köprü izin durumunu sorgulamaz ve arka plan konum izni yoktur: ikisi de false. */
+  async getLocationPermission(): Promise<{ permission: boolean; background: boolean }> {
+    return { permission: false, background: false };
+  }
+
+  async requestBackgroundLocationPermission(_options: { rationale?: string }): Promise<{ permission: boolean }> {
+    return { permission: false };
   }
 
   /** Web'de arka plan bölge izleme yoktur (ADR-0065): ayar etkisizdir, durum her zaman false. */
@@ -828,5 +884,10 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
 
   async chatGetVisitorId(): Promise<{ visitorId: string | null }> {
     throw chatUnsupported();
+  }
+
+  /** Web'de köprü sohbeti yoktur: dinleme hiçbir zaman açık değildir (hata fırlatılmaz). */
+  async chatIsListening(): Promise<{ listening: boolean }> {
+    return { listening: false };
   }
 }

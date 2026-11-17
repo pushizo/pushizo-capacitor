@@ -40,6 +40,11 @@ function fakeWebSdk() {
         ],
       })),
       setPreferences: vi.fn(),
+      setAdsPersonalizationConsent: vi.fn(),
+      getConsents: vi.fn(async () => [
+        { purpose: 'ads_personalization', granted: true, source: 'sdk', updatedAt: '2026-10-01T10:00:00.000Z' },
+        { purpose: 'profiling', granted: false, source: null, updatedAt: null },
+      ]),
       id: 'usr_1',
       externalId: 'ext_1',
       pushSubscription: {
@@ -321,6 +326,43 @@ describe('PushizoWeb', () => {
     expect(await hs.Delivery.shouldShowGuidance()).toBe(false);
     expect(await hs.Delivery.openSettings('auto_start')).toBe(false);
     expect(await hs.Delivery.showGuidance({ message: 'Bildirimleri kaçırmayın' })).toBe(false);
+  });
+
+  it('yerel API eşitliği: profille login ve rıza Web SDK\'ya iletilir; mobil özgü çağrılar web\'de zararsızdır', async () => {
+    const { sdk, web } = fakeWebSdk();
+    const hs = coreFor(web);
+    expect(await hs.isInitialized()).toBe(false);
+    await hs.initialize('app_1');
+    expect(await hs.isInitialized()).toBe(true);
+
+    await hs.login('user_42', { jwt: 'a.b.c', profile: { email: 'ali@ornek.com', sms: '+905551112233', tags: { plan: 'pro', level: 3 }, aliases: { crm: 'c-1' } } });
+    expect(sdk.login).toHaveBeenCalledWith('user_42', { identityHash: undefined, jwt: 'a.b.c' });
+    expect(sdk.User.addEmail).toHaveBeenCalledWith('ali@ornek.com');
+    expect(sdk.User.addSms).toHaveBeenCalledWith('+905551112233');
+    expect(sdk.User.addTags).toHaveBeenCalledWith({ plan: 'pro', level: '3' });
+    expect(sdk.User.addAliases).toHaveBeenCalledWith({ crm: 'c-1' });
+    // Profilsiz girişte ek çağrı yapılmaz.
+    await hs.login('user_43');
+    expect(sdk.User.addEmail).toHaveBeenCalledTimes(1);
+
+    const prefs = await hs.User.setAdsPersonalizationConsent(true);
+    expect(sdk.User.setAdsPersonalizationConsent).toHaveBeenCalledWith(true);
+    expect(prefs.categories.map((c) => c.key)).toEqual(['promo', 'news']);
+    expect(await hs.User.getConsents()).toEqual([
+      { purpose: 'ads_personalization', granted: true, source: 'sdk', updatedAt: Date.parse('2026-10-01T10:00:00.000Z') },
+      { purpose: 'profiling', granted: false, source: null, updatedAt: null },
+    ]);
+
+    // Android/iOS'a özgü çağrılar: istisna yok, etkisiz ya da false.
+    await hs.User.registerAdm('amzn1.adm-registration.v3.abc');
+    await hs.Ads.setAdvertisingId('38400000-8cf0-11bd-b23e-10b96e40000d');
+    await hs.Notifications.setBadgeCount(2);
+    await hs.Notifications.clearBadge();
+    expect(await hs.Location.permissionGranted()).toBe(false);
+    expect(await hs.Location.backgroundPermissionGranted()).toBe(false);
+    expect(await hs.Location.requestBackgroundPermission('Neden')).toBe(false);
+    expect(await hs.Location.requestAlwaysPermission()).toBe(false);
+    expect(await hs.Chat.isListening()).toBe(false);
   });
 
   it('özellik bayrakları Web SDK FeatureFlags yüzeyine iletilir; yenileme başarısı gözlemciden anlaşılır', async () => {
