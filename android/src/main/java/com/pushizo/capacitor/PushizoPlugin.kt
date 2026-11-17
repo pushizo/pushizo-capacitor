@@ -142,6 +142,11 @@ class PushizoPlugin : Plugin() {
     @PluginMethod fun chatAttachmentUrl(call: PluginCall) = dispatch(call)
     @PluginMethod fun chatGetVisitorId(call: PluginCall) = dispatch(call)
     @PluginMethod fun chatIsListening(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatShow(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatHide(call: PluginCall) = dispatch(call)
+    @PluginMethod fun chatIsPresented(call: PluginCall) = dispatch(call)
+    @PluginMethod fun setUserProperty(call: PluginCall) = dispatch(call)
+    @PluginMethod fun getBadgeCount(call: PluginCall) = dispatch(call)
 
     /** Android 13+ POST_NOTIFICATIONS istemi; önceki sürümlerde çalışma zamanı izni yoktur, mevcut durum döner. */
     @PluginMethod

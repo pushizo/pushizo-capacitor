@@ -156,6 +156,16 @@ export interface ContentCardFeed {
 /** Kart olayı: gösterim, tıklama veya kapatma. */
 export type ContentCardEvent = 'impression' | 'click' | 'dismiss';
 
+/**
+ * `Inbox.addObserver` olayı (yerel `HsInboxChangeEvent` / `HSInboxChangeEvent`, Web SDK `InboxChangeEvent`).
+ * `itemId` yalnızca tek öğe olaylarında (`read`, `archived`) bulunur; `unreadCount` güncel okunmamış sayısıdır.
+ */
+export interface InboxChangeEvent {
+  type: 'listed' | 'read' | 'read_all' | 'archived' | 'count';
+  itemId?: string;
+  unreadCount: number;
+}
+
 export interface InboxListOptions {
   /** 1-200 (varsayılan 50). */
   limit?: number;
@@ -213,6 +223,18 @@ export interface PreferenceInput {
 }
 
 export type InAppTriggerValue = string | number | boolean;
+
+/**
+ * `User.setProperty` değeri: metin, sonlu sayı, mantıksal ya da bunların dizisi/düz nesnesi. En üstteki `null` özelliği
+ * siler; iç içe `null` kabul edilmez.
+ */
+export type UserPropertyValue = string | number | boolean | null | UserPropertyValue[] | { [key: string]: UserPropertyValue };
+
+/** `Session.sendEvent` seçenekleri. */
+export interface SendEventOptions {
+  /** Tekilleştirme kimliği: 8-64 karakter; harf, rakam ve `. _ : -`. Biçim geçersizse yerel SDK kendi kimliğini üretir. */
+  eventId?: string;
+}
 
 /**
  * iOS Live Activity alan değeri (`PushizoDefaultLiveActivityAttributes.data` / `ContentState.data`): metin, sonlu
@@ -536,6 +558,8 @@ export interface PushizoPlugin {
   addAliases(options: { aliases: Record<string, string> }): Promise<void>;
   removeAlias(options: { label: string }): Promise<void>;
   setLanguage(options: { code: string }): Promise<void>;
+  /** Kullanıcı özelliği; `value: null` özelliği siler. */
+  setUserProperty(options: { key: string; value: UserPropertyValue }): Promise<void>;
   addEmail(options: { email: string }): Promise<void>;
   removeEmail(options: { email: string }): Promise<void>;
   addSms(options: { phoneNumber: string }): Promise<void>;
@@ -562,12 +586,16 @@ export interface PushizoPlugin {
   /** `id`: Android tepsi kimliği; `identifier`: iOS `UNNotificationRequest.identifier`. */
   removeNotification(options: { id?: number; identifier?: string }): Promise<void>;
   removeGroupedNotifications(options: { group: string }): Promise<void>;
-  /** Yalnızca iOS (uygulama rozeti); Android ve web'de etkisizdir. */
-  setBadgeCount(options: { count: number }): Promise<void>;
+  /**
+   * Uygulama rozeti: iOS'ta rozet ayarlanır, Android'de sayı saklanıp sonraki bildirimlere yazılır, web'de App Badging
+   * API kullanılır. `success` rozetin bu cihazda gösterilebildiğini bildirir.
+   */
+  setBadgeCount(options: { count: number }): Promise<{ success: boolean }>;
+  getBadgeCount(): Promise<{ count: number }>;
   setForegroundHandlerEnabled(options: { enabled: boolean }): Promise<void>;
   displayNotification(options: { notificationId: string }): Promise<void>;
 
-  sendEvent(options: { name: string; properties?: Record<string, unknown>; value?: number }): Promise<void>;
+  sendEvent(options: { name: string; properties?: Record<string, unknown>; value?: number; eventId?: string }): Promise<void>;
   setLogLevel(options: { level: LogLevel }): Promise<void>;
 
   addTriggers(options: { triggers: Record<string, string> }): Promise<void>;
@@ -588,7 +616,11 @@ export interface PushizoPlugin {
   contentCardsList(options: { limit: number }): Promise<ContentCardFeed>;
   contentCardEvent(options: { id: string; event: ContentCardEvent }): Promise<ContentCard>;
 
-  /** Canlı sohbet (ADR-0040; Android ve iOS). Web'de `PLATFORM_NOT_SUPPORTED` (web'de sohbet `@pushizo/web` widget'ıdır). */
+  /**
+   * Canlı sohbet (ADR-0040; Android ve iOS). Web'de hazır arayüz (`chatShow`/`chatHide`/`chatIsPresented`), ayarlar,
+   * konuşma, okunmamış sayısı, yazıyor bilgisi ve ek adresi `@pushizo/web`'e iletilir; mesaj akışı çağrıları
+   * `PLATFORM_NOT_SUPPORTED` ile reddedilir (web'de mesajlaşma Web SDK widget'ındadır).
+   */
   chatStart(options: ChatStartOptions): Promise<ChatIdentifyResult>;
   chatGetConfig(options: { language?: string }): Promise<ChatConfig>;
   chatGetConversation(): Promise<ChatConversationState>;
@@ -606,12 +638,16 @@ export interface PushizoPlugin {
   chatGetVisitorId(): Promise<{ visitorId: string | null }>;
   /** Canlı dinleme açık mı; web'de her zaman false. */
   chatIsListening(): Promise<{ listening: boolean }>;
+  /** Hazır sohbet ekranı (Android `HsChatActivity`, iOS `HSChatViewController`, web sohbet widget'ı). */
+  chatShow(): Promise<void>;
+  chatHide(): Promise<void>;
+  chatIsPresented(): Promise<{ presented: boolean }>;
 
   /** Konum paylaşımı (v2 Faz 17b); web'de `@pushizo/web` `Location` yüzeyine iletilir. */
   setLocationShared(options: { shared: boolean }): Promise<void>;
   isLocationShared(): Promise<{ shared: boolean }>;
   requestLocationPermission(options: { rationale?: string }): Promise<{ permission: boolean }>;
-  /** Konum izni durumu: `permission` ön plan, `background` arka plan ("her zaman"). Web'de ikisi de false. */
+  /** Konum izni durumu: `permission` ön plan (web: tarayıcı izninin son bilinen durumu), `background` arka plan ("her zaman"; web'de false). */
   getLocationPermission(): Promise<{ permission: boolean; background: boolean }>;
   /** Arka plan konum izni (Android `ACCESS_BACKGROUND_LOCATION`, iOS "her zaman"); web'de false. */
   requestBackgroundLocationPermission(options: { rationale?: string }): Promise<{ permission: boolean }>;
@@ -655,5 +691,7 @@ export interface PushizoPlugin {
   addListener(eventName: 'inAppLifecycle', listener: (event: RawInAppLifecycleEvent) => void): Promise<PluginListenerHandle>;
   addListener(eventName: 'chatEvent', listener: (event: Record<string, unknown>) => void): Promise<PluginListenerHandle>;
   addListener(eventName: 'chatOpen', listener: (event: ChatEventMap['open']) => void): Promise<PluginListenerHandle>;
+  addListener(eventName: 'featureFlagsChange', listener: () => void): Promise<PluginListenerHandle>;
+  addListener(eventName: 'inboxChange', listener: (event: InboxChangeEvent) => void): Promise<PluginListenerHandle>;
   removeAllListeners(): Promise<void>;
 }

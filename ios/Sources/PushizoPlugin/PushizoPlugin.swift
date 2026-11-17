@@ -103,6 +103,11 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "getLocationPermission", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestBackgroundLocationPermission", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "chatIsListening", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatShow", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatHide", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatIsPresented", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setUserProperty", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getBadgeCount", returnType: CAPPluginReturnPromise),
     ]
 
     private var core: PushizoBridgeCore!
@@ -235,4 +240,9 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func getLocationPermission(_ call: CAPPluginCall) { dispatch(call) }
     @objc func requestBackgroundLocationPermission(_ call: CAPPluginCall) { dispatch(call) }
     @objc func chatIsListening(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatShow(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatHide(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatIsPresented(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func setUserProperty(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func getBadgeCount(_ call: CAPPluginCall) { dispatch(call) }
 }

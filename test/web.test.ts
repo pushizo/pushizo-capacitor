@@ -11,6 +11,11 @@ function fakeWebSdk() {
   const listeners: Record<string, Fn> = {};
   let permission = 'default';
   let locationShared = false;
+  let locationGranted = false;
+  let badgeSupported = true;
+  let chatUnread = 3;
+  const flagObservers = new Set<() => void>();
+  const inboxObservers = new Set<Fn>();
   const sdk = {
     init: vi.fn(async () => undefined),
     setConsentGiven: vi.fn(async () => undefined),
@@ -24,6 +29,7 @@ function fakeWebSdk() {
       addAliases: vi.fn(),
       removeAlias: vi.fn(),
       setLanguage: vi.fn(),
+      setProperty: vi.fn(),
       addEmail: vi.fn(),
       removeEmail: vi.fn(),
       addSms: vi.fn(),
@@ -73,6 +79,8 @@ function fakeWebSdk() {
         listeners.foreground = cb;
         return () => undefined;
       }),
+      // App Badging API: tarayıcı desteklemiyorsa false.
+      setBadgeCount: vi.fn(async (_count: number) => badgeSupported),
     },
     Session: { sendEvent: vi.fn() },
     InAppMessages: {
@@ -110,6 +118,10 @@ function fakeWebSdk() {
       markAllRead: vi.fn(async () => ({ updated: 2, unreadCount: 0 })),
       archive: vi.fn(async () => undefined),
       unreadCount: vi.fn(async () => 4),
+      addObserver: vi.fn((cb: Fn) => {
+        inboxObservers.add(cb);
+        return () => inboxObservers.delete(cb);
+      }),
     },
     ContentCards: {
       list: vi.fn(async (_limit?: number) => ({ cards: [{
@@ -141,20 +153,46 @@ function fakeWebSdk() {
       get isShared() {
         return locationShared;
       },
-      requestPermission: vi.fn(async (_rationale?: string) => true),
+      get permissionGranted() {
+        return locationGranted;
+      },
+      requestPermission: vi.fn(async (_rationale?: string) => {
+        locationGranted = true;
+        return true;
+      }),
+    },
+    Chat: {
+      show: vi.fn(async (_options?: { open?: boolean }) => undefined),
+      hide: vi.fn(),
+      getConfig: vi.fn(async () => ({
+        enabled: true, online: true, within_business_hours: true, color: '#0af', text_color: null, position: 'right', theme: 'auto',
+        title: 'Destek', greeting: null, offline_message: 'Mesaj bırakın', collect_email_offline: true, require_email: false,
+        attachments: { enabled: true, max_bytes: 10485760, types: ['image/png'] }, language: 'tr',
+      })),
+      getConversation: vi.fn(async (): Promise<Record<string, unknown> | null> => ({
+        id: 'conv_1', status: 'open', last_seq: 9, agent_last_read_seq: 7, visitor_last_read_seq: 6, unread_count: 3,
+        bot_active: false, assignee_name: 'Ayşe', created_at: '2026-11-01T10:00:00.000Z',
+      })),
+      getUnreadCount: vi.fn(async () => {
+        chatUnread = 5;
+        return chatUnread;
+      }),
+      get unreadCount() {
+        return chatUnread;
+      },
+      setTyping: vi.fn(),
+      attachmentUrl: vi.fn((id: string, download = false) => `https://api.test/chat/attachments/${id}?download=${download}`),
     },
     FeatureFlags: {
       // Web SDK `refresh` sonuç döndürmez; yeni değer alındığında gözlemciler çağrılır (test: `flagsUpdated` ile).
       refresh: vi.fn(async () => {
-        if (flagsUpdated) listeners.flags?.();
+        if (flagsUpdated) flagObservers.forEach((cb) => cb());
       }),
       isEnabled: vi.fn((key: string, defaultValue: boolean = false): boolean => (key === 'yeni_sepet' ? true : defaultValue)),
       getValue: vi.fn((key: string, defaultValue?: unknown) => (key === 'tema' ? { renk: 'mavi' } : defaultValue)),
-      addObserver: vi.fn((cb: Fn) => {
-        listeners.flags = cb;
-        return () => {
-          delete listeners.flags;
-        };
+      addObserver: vi.fn((cb: () => void) => {
+        flagObservers.add(cb);
+        return () => flagObservers.delete(cb);
       }),
     },
     Placements: {
@@ -172,6 +210,10 @@ function fakeWebSdk() {
     setFlagsUpdated: (value: boolean) => {
       flagsUpdated = value;
     },
+    setBadgeSupported: (value: boolean) => {
+      badgeSupported = value;
+    },
+    emitInbox: (event: Record<string, unknown>) => inboxObservers.forEach((cb) => (cb as (e: unknown) => void)(event)),
   };
 }
 
@@ -336,14 +378,22 @@ describe('PushizoWeb', () => {
     expect(await hs.isInitialized()).toBe(true);
 
     await hs.login('user_42', { jwt: 'a.b.c', profile: { email: 'ali@ornek.com', sms: '+905551112233', tags: { plan: 'pro', level: 3 }, aliases: { crm: 'c-1' } } });
-    expect(sdk.login).toHaveBeenCalledWith('user_42', { identityHash: undefined, jwt: 'a.b.c' });
-    expect(sdk.User.addEmail).toHaveBeenCalledWith('ali@ornek.com');
-    expect(sdk.User.addSms).toHaveBeenCalledWith('+905551112233');
-    expect(sdk.User.addTags).toHaveBeenCalledWith({ plan: 'pro', level: '3' });
-    expect(sdk.User.addAliases).toHaveBeenCalledWith({ crm: 'c-1' });
-    // Profilsiz girişte ek çağrı yapılmaz.
+    // Profil Web SDK'nın `login(id, proof, profile)` çağrısına gider (doğrulama ve sıralama Web SDK'dadır).
+    expect(sdk.login).toHaveBeenCalledWith(
+      'user_42',
+      { identityHash: undefined, jwt: 'a.b.c' },
+      { email: 'ali@ornek.com', sms: '+905551112233', tags: { plan: 'pro', level: '3' }, aliases: { crm: 'c-1' } },
+    );
+    for (const fn of [sdk.User.addEmail, sdk.User.addSms, sdk.User.addTags, sdk.User.addAliases]) expect(fn).not.toHaveBeenCalled();
+    // Profilsiz girişte üçüncü argüman gönderilmez.
     await hs.login('user_43');
-    expect(sdk.User.addEmail).toHaveBeenCalledTimes(1);
+    expect(sdk.login).toHaveBeenLastCalledWith('user_43', { identityHash: undefined, jwt: undefined });
+    // Web SDK'nın e-posta/telefon doğrulama hatası native köprülerle aynı kodla reddedilir; diğer hatalar aynen iletilir.
+    sdk.login.mockRejectedValueOnce(Object.assign(new Error('Geçersiz e-posta adresi (ör. ad@pushizo.com).'), { name: 'ContactValidationError' }));
+    await expect(hs.login('user_44', { profile: { email: 'gecersiz' } })).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
+    const other = new Error('Bu app için kimlik JWT\'si zorunlu.');
+    sdk.login.mockRejectedValueOnce(other);
+    await expect(hs.login('user_45', { profile: { email: 'ali@ornek.com' } })).rejects.toBe(other);
 
     const prefs = await hs.User.setAdsPersonalizationConsent(true);
     expect(sdk.User.setAdsPersonalizationConsent).toHaveBeenCalledWith(true);
@@ -356,9 +406,6 @@ describe('PushizoWeb', () => {
     // Android/iOS'a özgü çağrılar: istisna yok, etkisiz ya da false.
     await hs.User.registerAdm('amzn1.adm-registration.v3.abc');
     await hs.Ads.setAdvertisingId('38400000-8cf0-11bd-b23e-10b96e40000d');
-    await hs.Notifications.setBadgeCount(2);
-    await hs.Notifications.clearBadge();
-    expect(await hs.Location.permissionGranted()).toBe(false);
     expect(await hs.Location.backgroundPermissionGranted()).toBe(false);
     expect(await hs.Location.requestBackgroundPermission('Neden')).toBe(false);
     expect(await hs.Location.requestAlwaysPermission()).toBe(false);
@@ -600,5 +647,131 @@ describe('PushizoWeb', () => {
     await coreFor(web).Notifications.removeGroupedNotifications('orders');
     expect(close).toHaveBeenCalledTimes(4);
     expect(getNotifications).toHaveBeenLastCalledWith({ tag: 'orders' });
+  });
+
+  it('rozet App Badging API\'ye (Web SDK) iletilir; desteklenmeyen tarayıcıda false ve sayı değişmez', async () => {
+    const { sdk, web, setBadgeSupported } = fakeWebSdk();
+    const hs = coreFor(web);
+    expect(await hs.Notifications.getBadgeCount()).toBe(0);
+    expect(await hs.Notifications.setBadgeCount(4)).toBe(true);
+    expect(sdk.Notifications.setBadgeCount).toHaveBeenLastCalledWith(4);
+    expect(await hs.Notifications.getBadgeCount()).toBe(4);
+
+    setBadgeSupported(false);
+    expect(await hs.Notifications.setBadgeCount(9)).toBe(false);
+    expect(await hs.Notifications.clearBadge()).toBe(false);
+    expect(await hs.Notifications.getBadgeCount()).toBe(4);
+
+    setBadgeSupported(true);
+    expect(await hs.Notifications.clearBadge()).toBe(true);
+    expect(sdk.Notifications.setBadgeCount).toHaveBeenLastCalledWith(0);
+    expect(await hs.Notifications.getBadgeCount()).toBe(0);
+  });
+
+  it('User.setProperty ve sendEvent eventId Web SDK\'ya iletilir', async () => {
+    const { sdk, web } = fakeWebSdk();
+    const hs = coreFor(web);
+    await hs.User.setProperty('plan', 'pro');
+    await hs.User.setProperty('address', { city: 'İzmir', tags: [1, 2] });
+    await hs.User.setProperty('plan', null);
+    expect(sdk.User.setProperty.mock.calls).toEqual([
+      ['plan', 'pro'],
+      ['address', { city: 'İzmir', tags: [1, 2] }],
+      ['plan', null],
+    ]);
+
+    await hs.Session.sendEvent('purchase', { sku: 'A1' }, 49.9, { eventId: 'order_42:purchase' });
+    expect(sdk.Session.sendEvent).toHaveBeenLastCalledWith('purchase', { sku: 'A1' }, 49.9, { eventId: 'order_42:purchase' });
+    // Kimlik verilmediyse dördüncü argüman gönderilmez (Web SDK kendi kimliğini üretir).
+    await hs.Session.sendEvent('view');
+    expect(sdk.Session.sendEvent).toHaveBeenLastCalledWith('view', {}, undefined);
+  });
+
+  it('Location.permissionGranted Web SDK\'daki son bilinen tarayıcı iznini döner', async () => {
+    const { web } = fakeWebSdk();
+    const hs = coreFor(web);
+    expect(await hs.Location.permissionGranted()).toBe(false);
+    expect(await hs.Location.requestPermission()).toBe(true);
+    expect(await hs.Location.permissionGranted()).toBe(true);
+    // Web'de arka plan konum izni yoktur.
+    expect(await hs.Location.backgroundPermissionGranted()).toBe(false);
+  });
+
+  it('özellik bayrağı ve bildirim kutusu gözlemcileri Web SDK gözlemcilerinden beslenir', async () => {
+    const { sdk, web, emitInbox } = fakeWebSdk();
+    const hs = coreFor(web);
+    await hs.initialize('app_1');
+    await hs.initialize('app_1');
+    // Web SDK gözlemcileri bir kez bağlanır.
+    expect(sdk.FeatureFlags.addObserver).toHaveBeenCalledTimes(1);
+    expect(sdk.Inbox.addObserver).toHaveBeenCalledTimes(1);
+
+    const flags = vi.fn();
+    const removeFlags = hs.FeatureFlags.addObserver(flags);
+    const inbox: unknown[] = [];
+    hs.Inbox.addObserver((e) => inbox.push(e));
+    await Promise.resolve();
+
+    expect(await hs.FeatureFlags.refresh()).toBe(true);
+    expect(flags).toHaveBeenCalledTimes(1);
+    removeFlags();
+    await hs.FeatureFlags.refresh();
+    expect(flags).toHaveBeenCalledTimes(1);
+
+    emitInbox({ type: 'read', itemId: 'i1', unreadCount: 3 });
+    emitInbox({ type: 'read_all', unreadCount: 0 });
+    expect(inbox).toEqual([
+      { type: 'read', itemId: 'i1', unreadCount: 3 },
+      { type: 'read_all', unreadCount: 0 },
+    ]);
+  });
+
+  it('Chat: hazır arayüz, ayarlar, konuşma, okunmamış sayısı, yazıyor ve ek adresi Web SDK\'ya iletilir', async () => {
+    const { sdk, web } = fakeWebSdk();
+    const hs = coreFor(web);
+    expect(await hs.Chat.isPresented()).toBe(false);
+    await hs.Chat.show();
+    expect(sdk.Chat.show).toHaveBeenCalledWith({ open: true });
+    expect(await hs.Chat.isPresented()).toBe(true);
+    await hs.Chat.hide();
+    expect(sdk.Chat.hide).toHaveBeenCalledTimes(1);
+    expect(await hs.Chat.isPresented()).toBe(false);
+
+    expect(await hs.Chat.getConfig('en')).toEqual({
+      enabled: true, online: true, withinBusinessHours: true, color: '#0af', textColor: null, position: 'right', theme: 'auto',
+      title: 'Destek', greeting: null, offlineMessage: 'Mesaj bırakın', collectEmailOffline: true, requireEmail: false,
+      attachmentsEnabled: true, attachmentMaxBytes: 10485760, attachmentTypes: ['image/png'], language: 'tr',
+    });
+    expect(await hs.Chat.getConversation()).toEqual({
+      conversation: {
+        id: 'conv_1', status: 'open', lastSeq: 9, agentLastReadSeq: 7, visitorLastReadSeq: 6, unreadCount: 3,
+        botActive: false, assigneeName: 'Ayşe', createdAt: Date.parse('2026-11-01T10:00:00.000Z'),
+      },
+      unreadCount: 3,
+    });
+    sdk.Chat.getConversation.mockResolvedValueOnce(null);
+    expect(await hs.Chat.getConversation()).toEqual({ conversation: null, unreadCount: 3 });
+
+    expect(await hs.Chat.getUnreadCount()).toBe(3);
+    expect(await hs.Chat.refreshUnreadCount()).toBe(5);
+    expect(await hs.Chat.getUnreadCount()).toBe(5);
+    await hs.Chat.setTyping(true);
+    expect(sdk.Chat.setTyping).toHaveBeenCalledWith(true);
+    expect(await hs.Chat.attachmentUrl('att_1', true)).toBe('https://api.test/chat/attachments/att_1?download=true');
+  });
+
+  it('Chat mesaj akışı çağrıları web\'de PLATFORM_NOT_SUPPORTED ile reddedilir (mesajlaşma widget\'tadır)', async () => {
+    const hs = coreFor(fakeWebSdk().web);
+    const expected = { code: 'PLATFORM_NOT_SUPPORTED' };
+    await expect(hs.Chat.start()).rejects.toMatchObject(expected);
+    await expect(hs.Chat.getMessages()).rejects.toMatchObject(expected);
+    await expect(hs.Chat.sendMessage('Merhaba')).rejects.toMatchObject(expected);
+    await expect(hs.Chat.sendAttachment({ base64: 'QQ==' }, { fileName: 'a.txt', mimeType: 'text/plain' })).rejects.toMatchObject(expected);
+    await expect(hs.Chat.markRead(1)).rejects.toMatchObject(expected);
+    await expect(hs.Chat.leaveOfflineMessage('ali@ornek.com', 'Merhaba')).rejects.toMatchObject(expected);
+    await expect(hs.Chat.startListening()).rejects.toMatchObject(expected);
+    await expect(hs.Chat.stopListening()).rejects.toMatchObject(expected);
+    await expect(hs.Chat.getVisitorId()).rejects.toMatchObject(expected);
+    expect(await hs.Chat.isListening()).toBe(false);
   });
 });

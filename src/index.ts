@@ -18,6 +18,8 @@ const EVENT_TYPES: readonly BridgeEventType[] = [
   'inAppLifecycle',
   'chatEvent',
   'chatOpen',
+  'featureFlagsChange',
+  'inboxChange',
 ];
 
 /** Capacitor eklentisini cephenin taşıma arayüzüne uyarlar. */

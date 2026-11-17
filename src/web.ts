@@ -1,11 +1,14 @@
 /*
  * Web platformu: `@pushizo/web` SDK'sına devreder (Web Push + service worker, konum, özellik bayrakları, gömülü
- * yerleşimler). Native'e özgü işlemler (Android tepsi kimliği ile kaldırma, engellenmiş bildirimi sonradan gösterme)
- * web'de `unavailable` hatası verir; arka plan bölge izleme web'de yoktur.
+ * yerleşimler, rozet, kullanıcı özellikleri, gözlemciler, sohbet widget'ı). Native'e özgü işlemler (Android tepsi kimliği
+ * ile kaldırma, engellenmiş bildirimi sonradan gösterme) web'de `unavailable` hatası verir; arka plan bölge izleme
+ * web'de yoktur.
  */
 import { WebPlugin } from '@capacitor/core';
 import WebSdk from '@pushizo/web';
 import type {
+  ChatConfig as WebChatConfig,
+  ChatConversation as WebChatConversation,
   ForegroundLifecycleEvent as WebForegroundEvent,
   InAppMessage as WebInAppMessage,
   ContentCard as WebContentCard,
@@ -19,6 +22,7 @@ import type {
 
 import type {
   ChatConfig,
+  ChatConversation,
   ChatConversationState,
   ChatIdentifyResult,
   ChatMessage,
@@ -51,6 +55,7 @@ import type {
   UserConsent,
   UserPreference,
   UserPreferences,
+  UserPropertyValue,
 } from './definitions.js';
 
 /** Web SDK örneğinin bu eklentinin kullandığı yüzeyi (testlerde sahte örnek verilebilir). */
@@ -163,8 +168,12 @@ function codedError(code: string, message: string): Error {
 /** Android köprüsüyle aynı ret mesajı (`PLATFORM_NOT_SUPPORTED`). */
 const LIVE_ACTIVITIES_IOS_ONLY = "Live Activities yalnızca iOS'ta desteklenir";
 
-/** Web'de canlı sohbet `@pushizo/web` sohbet widget'ıyla sunulur; `Pushizo.Chat` yalnızca Android ve iOS'tadır. */
-const CHAT_NATIVE_ONLY = "Capacitor web'de canlı sohbet Web SDK widget'ıyla sunulur; Pushizo.Chat yalnızca Android ve iOS'ta kullanılabilir";
+/**
+ * Web'de mesajlaşma `@pushizo/web` sohbet widget'ındadır (`Pushizo.Chat.show()`); köprünün mesaj akışı çağrıları
+ * (`start`, `getMessages`, `sendMessage`, `startListening` …) yalnızca Android ve iOS'tadır.
+ */
+const CHAT_NATIVE_ONLY =
+  "Capacitor web'de mesajlaşma Web SDK sohbet widget'ıyla sunulur (Pushizo.Chat.show()); bu çağrı yalnızca Android ve iOS'ta kullanılabilir";
 
 function chatUnsupported(): Error {
   return codedError('PLATFORM_NOT_SUPPORTED', CHAT_NATIVE_ONLY);
@@ -367,6 +376,42 @@ function mapInAppMessage(raw: WebInAppMessage): InAppMessage | null {
   };
 }
 
+/** Web SDK sohbet ayarları (sunucu alan adları) → köprü modeli. */
+function mapChatConfig(c: WebChatConfig): ChatConfig {
+  return {
+    enabled: c.enabled === true,
+    online: c.online === true,
+    withinBusinessHours: c.within_business_hours === true,
+    color: c.color ?? null,
+    textColor: c.text_color ?? null,
+    position: c.position,
+    theme: c.theme,
+    title: c.title ?? null,
+    greeting: c.greeting ?? null,
+    offlineMessage: c.offline_message ?? null,
+    collectEmailOffline: c.collect_email_offline === true,
+    requireEmail: c.require_email === true,
+    attachmentsEnabled: c.attachments?.enabled === true,
+    attachmentMaxBytes: c.attachments?.max_bytes ?? 0,
+    attachmentTypes: c.attachments?.types ?? [],
+    language: c.language,
+  };
+}
+
+function mapChatConversation(c: WebChatConversation): ChatConversation {
+  return {
+    id: c.id,
+    status: c.status,
+    lastSeq: c.last_seq,
+    agentLastReadSeq: c.agent_last_read_seq,
+    visitorLastReadSeq: c.visitor_last_read_seq,
+    unreadCount: c.unread_count,
+    botActive: c.bot_active === true,
+    assigneeName: c.assignee_name ?? null,
+    createdAt: millis(c.created_at),
+  };
+}
+
 function mapState(s: WebPushSubscriptionState): PushSubscriptionState {
   return { id: s.id, token: s.token, optedIn: s.optedIn, permission: s.permission === 'granted' };
 }
@@ -381,6 +426,10 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
   private serviceWorkerScope: string | undefined;
   /** Son `placementsList` yanıtlarındaki Web SDK mesajları; raporlar bu nesnelerle yapılır. */
   private readonly placementMessages = new Map<string, WebInAppMessage>();
+  /** Bu oturumda başarıyla ayarlanan son rozet sayısı (tarayıcı rozeti okutmaz). */
+  private badgeCount = 0;
+  /** `chatShow` ile sohbet widget'ı gösterildi ve `chatHide` ile kaldırılmadı. */
+  private chatPresented = false;
 
   constructor(private readonly sdk: WebSdkInstance = WebSdk) {
     super();
@@ -446,6 +495,10 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
       willDismiss: lifecycle('willDismiss'),
       didDismiss: lifecycle('didDismiss'),
     });
+    sdk.FeatureFlags.addObserver(() => this.notifyListeners('featureFlagsChange', {}));
+    sdk.Inbox.addObserver((e) => {
+      this.notifyListeners('inboxChange', e.itemId ? { type: e.type, itemId: e.itemId, unreadCount: e.unreadCount } : { type: e.type, unreadCount: e.unreadCount });
+    });
   }
 
   private emitPermission(permission: boolean): void {
@@ -458,15 +511,24 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
     await this.sdk.setConsentGiven(options.given);
   }
 
-  /** Profil alanları girişten sonra Web SDK'nın ilgili çağrılarına iletilir (native `login(id, profile)` ile aynı sıra). */
+  /**
+   * Profil Web SDK'nın `login(id, proof, profile)` çağrısına iletilir: e-posta, telefon ve takma adlar girişten önce
+   * doğrulanır (yarım kalmış kimlik değişimi olmaz). Geçersiz e-posta/telefon native köprülerle aynı kodla
+   * (`INVALID_ARGUMENT`) reddedilir.
+   */
   async login(options: { externalId: string; identityHash?: string; jwt?: string; profile?: NativeUserProfile }): Promise<void> {
-    await this.sdk.login(options.externalId, { identityHash: options.identityHash, jwt: options.jwt });
-    const profile = options.profile;
-    if (!profile) return;
-    if (profile.email) this.sdk.User.addEmail(profile.email);
-    if (profile.sms) this.sdk.User.addSms(profile.sms);
-    if (profile.tags && Object.keys(profile.tags).length > 0) this.sdk.User.addTags(profile.tags);
-    if (profile.aliases && Object.keys(profile.aliases).length > 0) this.sdk.User.addAliases(profile.aliases);
+    const proof = { identityHash: options.identityHash, jwt: options.jwt };
+    if (!options.profile) {
+      await this.sdk.login(options.externalId, proof);
+      return;
+    }
+    try {
+      await this.sdk.login(options.externalId, proof, options.profile);
+    } catch (err) {
+      // Web SDK geçersiz e-posta/telefonda `ContactValidationError` fırlatır (mesajda adres yer almaz).
+      if (err instanceof Error && err.name === 'ContactValidationError') throw codedError('INVALID_ARGUMENT', err.message);
+      throw err;
+    }
   }
 
   async updateUserJwt(options: { jwt: string }): Promise<void> {
@@ -499,6 +561,10 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
 
   async setLanguage(options: { code: string }): Promise<void> {
     this.sdk.User.setLanguage(options.code);
+  }
+
+  async setUserProperty(options: { key: string; value: UserPropertyValue }): Promise<void> {
+    this.sdk.User.setProperty(options.key, options.value ?? null);
   }
 
   async addEmail(options: { email: string }): Promise<void> {
@@ -576,9 +642,15 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
     return;
   }
 
-  /** Uygulama rozeti yalnızca iOS'tadır: web'de etkisiz. */
-  async setBadgeCount(_options: { count: number }): Promise<void> {
-    return;
+  /** App Badging API (yüklü PWA'larda görünür); tarayıcı desteklemiyorsa ya da çağrı reddedilirse `success` false. */
+  async setBadgeCount(options: { count: number }): Promise<{ success: boolean }> {
+    const success = await this.sdk.Notifications.setBadgeCount(options.count);
+    if (success) this.badgeCount = Math.max(0, Math.floor(options.count));
+    return { success };
+  }
+
+  async getBadgeCount(): Promise<{ count: number }> {
+    return { count: this.badgeCount };
   }
 
   async getPushSubscription(): Promise<PushSubscriptionState> {
@@ -638,8 +710,9 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
     // Engellenmemiş bildirim service worker tarafından zaten gösterildi.
   }
 
-  async sendEvent(options: { name: string; properties?: Record<string, unknown>; value?: number }): Promise<void> {
-    this.sdk.Session.sendEvent(options.name, options.properties, options.value);
+  async sendEvent(options: { name: string; properties?: Record<string, unknown>; value?: number; eventId?: string }): Promise<void> {
+    if (options.eventId) this.sdk.Session.sendEvent(options.name, options.properties, options.value, { eventId: options.eventId });
+    else this.sdk.Session.sendEvent(options.name, options.properties, options.value);
   }
 
   async setLogLevel(options: { level: LogLevel }): Promise<void> {
@@ -722,9 +795,9 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
     return { permission: await this.sdk.Location.requestPermission(options.rationale) };
   }
 
-  /** Web'de köprü izin durumunu sorgulamaz ve arka plan konum izni yoktur: ikisi de false. */
+  /** Tarayıcı konum izninin Web SDK'daki son bilinen durumu (istem açmaz); web'de arka plan konum izni yoktur. */
   async getLocationPermission(): Promise<{ permission: boolean; background: boolean }> {
-    return { permission: false, background: false };
+    return { permission: this.sdk.Location.permissionGranted === true, background: false };
   }
 
   async requestBackgroundLocationPermission(_options: { rationale?: string }): Promise<{ permission: boolean }> {
@@ -825,17 +898,37 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
     throw codedError('PLATFORM_NOT_SUPPORTED', LIVE_ACTIVITIES_IOS_ONLY);
   }
 
-  // Canlı sohbet: web'de açık hatayla reddedilir (sessizce yok sayılmaz).
+  // Canlı sohbet: hazır arayüz, ayarlar, konuşma, okunmamış sayısı, yazıyor bilgisi ve ek adresi Web SDK'ya iletilir.
+  // Mesaj akışı çağrıları web'de açık hatayla reddedilir (sessizce yok sayılmaz); mesajlaşma widget'ın içindedir.
+
+  /** Web SDK sohbet widget'ını yükler ve pencereyi açar (sohbet app ayarında kapalıysa Web SDK hiçbir şey göstermez). */
+  async chatShow(): Promise<void> {
+    await this.sdk.Chat.show({ open: true });
+    this.chatPresented = true;
+  }
+
+  /** Widget'ı kaldırır ve canlı akışı kapatır. */
+  async chatHide(): Promise<void> {
+    this.sdk.Chat.hide();
+    this.chatPresented = false;
+  }
+
+  async chatIsPresented(): Promise<{ presented: boolean }> {
+    return { presented: this.chatPresented };
+  }
+
   async chatStart(): Promise<ChatIdentifyResult> {
     throw chatUnsupported();
   }
 
-  async chatGetConfig(): Promise<ChatConfig> {
-    throw chatUnsupported();
+  /** Web SDK ayarları kendi dilinde çözer; `language` yok sayılır. */
+  async chatGetConfig(_options: { language?: string } = {}): Promise<ChatConfig> {
+    return mapChatConfig(await this.sdk.Chat.getConfig());
   }
 
   async chatGetConversation(): Promise<ChatConversationState> {
-    throw chatUnsupported();
+    const conversation = await this.sdk.Chat.getConversation();
+    return { conversation: conversation ? mapChatConversation(conversation) : null, unreadCount: this.sdk.Chat.unreadCount };
   }
 
   async chatGetMessages(): Promise<ChatMessagePage> {
@@ -854,20 +947,22 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
     throw chatUnsupported();
   }
 
+  /** Okunmamış sayısını sunucudan yeniler. */
   async chatRefreshUnreadCount(): Promise<{ unreadCount: number }> {
-    throw chatUnsupported();
+    return { unreadCount: await this.sdk.Chat.getUnreadCount() };
   }
 
+  /** Son bilinen okunmamış sayısı (ağ çağrısı yok). */
   async chatGetUnreadCount(): Promise<{ unreadCount: number }> {
-    throw chatUnsupported();
+    return { unreadCount: this.sdk.Chat.unreadCount };
   }
 
   async chatLeaveOfflineMessage(): Promise<ChatMessage> {
     throw chatUnsupported();
   }
 
-  async chatSetTyping(): Promise<void> {
-    throw chatUnsupported();
+  async chatSetTyping(options: { typing: boolean }): Promise<void> {
+    this.sdk.Chat.setTyping(options.typing === true);
   }
 
   async chatStartListening(): Promise<void> {
@@ -878,8 +973,8 @@ export class PushizoWeb extends WebPlugin implements PushizoPlugin {
     throw chatUnsupported();
   }
 
-  async chatAttachmentUrl(): Promise<{ url: string }> {
-    throw chatUnsupported();
+  async chatAttachmentUrl(options: { attachmentId: string; download?: boolean }): Promise<{ url: string }> {
+    return { url: this.sdk.Chat.attachmentUrl(options.attachmentId, options.download === true) };
   }
 
   async chatGetVisitorId(): Promise<{ visitorId: string | null }> {
