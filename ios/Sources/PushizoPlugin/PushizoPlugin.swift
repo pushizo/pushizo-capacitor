@@ -59,10 +59,25 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "inboxMarkAllRead", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "inboxArchive", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "inboxUnreadCount", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "contentCardsList", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "contentCardEvent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setupDefaultLiveActivity", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "startDefaultLiveActivity", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setLocationShared", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "isLocationShared", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setGeofencingEnabled", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "isGeofencingEnabled", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deliveryStatus", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deliveryShouldShowGuidance", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deliveryOpenSettings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deliveryShowGuidance", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "featureFlagsRefresh", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "featureFlagsIsEnabled", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "featureFlagsGetValue", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "placementsList", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "placementsReportImpression", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "placementsReportClick", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "placementsReportDismiss", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "chatStart", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "chatGetConfig", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "chatGetConversation", returnType: CAPPluginReturnPromise),
@@ -79,6 +94,20 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "chatAttachmentUrl", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "chatGetVisitorId", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestLocationPermission", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "isInitialized", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setAdsPersonalizationConsent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getConsents", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "registerAdm", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setAdvertisingId", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setBadgeCount", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getLocationPermission", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestBackgroundLocationPermission", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatIsListening", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatShow", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatHide", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "chatIsPresented", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setUserProperty", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getBadgeCount", returnType: CAPPluginReturnPromise),
     ]
 
     private var core: PushizoBridgeCore!
@@ -167,10 +196,25 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func inboxMarkAllRead(_ call: CAPPluginCall) { dispatch(call) }
     @objc func inboxArchive(_ call: CAPPluginCall) { dispatch(call) }
     @objc func inboxUnreadCount(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func contentCardsList(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func contentCardEvent(_ call: CAPPluginCall) { dispatch(call) }
     @objc func setupDefaultLiveActivity(_ call: CAPPluginCall) { dispatch(call) }
     @objc func startDefaultLiveActivity(_ call: CAPPluginCall) { dispatch(call) }
     @objc func setLocationShared(_ call: CAPPluginCall) { dispatch(call) }
     @objc func isLocationShared(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func setGeofencingEnabled(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func isGeofencingEnabled(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func deliveryStatus(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func deliveryShouldShowGuidance(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func deliveryOpenSettings(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func deliveryShowGuidance(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func featureFlagsRefresh(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func featureFlagsIsEnabled(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func featureFlagsGetValue(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func placementsList(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func placementsReportImpression(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func placementsReportClick(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func placementsReportDismiss(_ call: CAPPluginCall) { dispatch(call) }
     @objc func chatStart(_ call: CAPPluginCall) { dispatch(call) }
     @objc func chatGetConfig(_ call: CAPPluginCall) { dispatch(call) }
     @objc func chatGetConversation(_ call: CAPPluginCall) { dispatch(call) }
@@ -187,4 +231,18 @@ public class PushizoPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func chatAttachmentUrl(_ call: CAPPluginCall) { dispatch(call) }
     @objc func chatGetVisitorId(_ call: CAPPluginCall) { dispatch(call) }
     @objc func requestLocationPermission(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func isInitialized(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func setAdsPersonalizationConsent(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func getConsents(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func registerAdm(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func setAdvertisingId(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func setBadgeCount(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func getLocationPermission(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func requestBackgroundLocationPermission(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatIsListening(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatShow(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatHide(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func chatIsPresented(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func setUserProperty(_ call: CAPPluginCall) { dispatch(call) }
+    @objc func getBadgeCount(_ call: CAPPluginCall) { dispatch(call) }
 }

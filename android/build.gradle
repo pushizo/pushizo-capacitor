@@ -1,7 +1,7 @@
 // Pushizo Capacitor eklentisi (Android). Uygulamanın Capacitor projesi tarafından `:pushizo-capacitor`
 // modülü olarak eklenir (npx cap sync). Sürümler uygulamanın `variables.gradle` değerleriyle ezilebilir.
 ext {
-    pushizoAndroidVersion = project.hasProperty('pushizoAndroidVersion') ? rootProject.ext.pushizoAndroidVersion : '0.1.0'
+    pushizoAndroidVersion = project.hasProperty('pushizoAndroidVersion') ? rootProject.ext.pushizoAndroidVersion : '0.3.0'
     androidxAppCompatVersion = project.hasProperty('androidxAppCompatVersion') ? rootProject.ext.androidxAppCompatVersion : '1.6.1'
 }
 

@@ -13,19 +13,6 @@
 
 **Pushizo Capacitor plugin** — Capacitor (Ionic) plugin that wraps the native Pushizo Android and iOS SDKs; on the web it delegates to the Pushizo Web SDK.
 
-> **Status:** Publishing to npm is in progress.<br>
-> **Durum:** npm yayını hazırlanıyor.
-
-**Install from GitHub until then · O zamana kadar GitHub'dan kurulum:**
-
-```bash
-npm install --allow-remote=root https://github.com/pushizo/pushizo-web/releases/download/v0.1.0/pushizo-web-0.1.0.tgz \
-  https://github.com/pushizo/pushizo-capacitor/releases/download/v0.1.0/pushizo-capacitor-0.1.0.tgz
-npx cap sync
-```
-
-**After publication · Yayından sonra:**
-
 ```bash
 npm install @pushizo/capacitor
 npx cap sync
@@ -47,7 +34,11 @@ Pushizo'nun Capacitor (Ionic) eklentisi. Native Pushizo Android (`com.pushizo:pu
 - Kullanıcı: `login`/`logout` (identity verification `identityHash`), tag, alias, dil, e-posta ve SMS aboneliği
 - In-app mesajlar (tetik, ekran, duraklatma, tıklama ve yaşam döngüsü olayları; native çizim)
 - Bildirim kutusu (listeleme, okundu, tümünü okundu, arşiv, okunmamış sayısı)
-- Konum paylaşımı (yalnızca ön plan, açıklama + izin istemi; web'de `@pushizo/web`)
+- Konum paylaşımı (yalnızca ön plan, açıklama + izin istemi; web'de `@pushizo/web`) ve arka plan bölge izleme (Android/iOS)
+- Özellik bayrakları (`FeatureFlags`) ve gömülü yerleşimler (`Placements`; web'de `@pushizo/web`)
+- Android teslimat güçlendirme (`Delivery`: üretici/ROM teşhisi, ayar ekranına yönlendirme; iOS'ta ve web'de zararsız)
+- Profille `login`, reklam kişiselleştirme rızası (`setAdsPersonalizationConsent`, `getConsents`), reklam kimliği (`Ads`), rozet, arka plan konum izni
+- Kullanıcı özellikleri (`User.setProperty`), özellik bayrağı ve bildirim kutusu gözlemcileri, olay tekilleştirme kimliği (`eventId`), hazır sohbet ekranı (`Chat.show`)
 - Özel olay (`Session.sendEvent`), KVKK/GDPR gizlilik onayı, günlük seviyesi, bildirim tepsisini temizleme
 
 ## Kurulum
@@ -79,7 +70,7 @@ Pushizo.Notifications.addClickListener((event) => {
 const granted = await Pushizo.Notifications.requestPermission();
 await Pushizo.login('user_42');              // identity verification açıksa: login('user_42', identityHash)
 await Pushizo.User.addTags({ plan: 'pro', level: 3 });
-await Pushizo.User.addEmail('ali@example.com');
+await Pushizo.User.addEmail('ali@pushizo.com');
 await Pushizo.User.addSms('+905551112233');
 await Pushizo.Session.sendEvent('purchase', { sku: 'A1' }, 49.9);
 ```
@@ -238,7 +229,10 @@ geri çekilme + `after_seq` yoklaması) ve push ile gelen temsilci mesajları (`
 `start` sonrası login/logout ve push aboneliği değişince bağlama yerel SDK'da yenilenir, logout ziyaretçiyi sıfırlar.
 Mesajlar `seq` ile sıralanır; ağ yokken gönderilen mesaj `pending` döner ve gönderilince olayla sunucu kopyası gelir.
 Ayrıntı: [android rehberi](https://docs.pushizo.com/docs/sdk/android) / [ios rehberi](https://docs.pushizo.com/docs/sdk/ios) → "Canlı sohbet".
-Capacitor web'de sohbet `@pushizo/web` widget'ıyla sunulur; `Pushizo.Chat` çağrıları `PLATFORM_NOT_SUPPORTED` döner.
+
+Hazır sohbet ekranı için kendi arayüzünüzü yazmanız gerekmez: `Pushizo.Chat.show()` yerel SDK'nın sohbet ekranını açar (Android `HsChatActivity`, iOS modal `HSChatViewController`), `Pushizo.Chat.hide()` kapatır, `Pushizo.Chat.isPresented()` ekranın açık olup olmadığını döndürür. Ayrıntı: "Kullanıcı özellikleri, gözlemciler, olay kimliği ve hazır sohbet ekranı".
+
+Capacitor web'de mesajlaşma `@pushizo/web` sohbet widget'ındadır: `Chat.show()` widget'ı yükleyip pencereyi açar, `Chat.hide()` kaldırır; `getConfig`, `getConversation`, `getUnreadCount`, `refreshUnreadCount`, `setTyping` ve `attachmentUrl` Web SDK'ya iletilir. Mesaj akışı çağrıları (`start`, `getMessages`, `sendMessage`, `sendAttachment`, `markRead`, `leaveOfflineMessage`, `startListening`, `stopListening`, `getVisitorId`) web'de `PLATFORM_NOT_SUPPORTED` döner.
 
 ### Konum
 
@@ -277,6 +271,157 @@ await Pushizo.Location.setShared(false);                  // paylaşımı kapat�
 - **Web:** çağrılar `@pushizo/web` `Location` yüzeyine iletilir (tarayıcı Geolocation izni; açıklama kutusu Web SDK
   tarafından gösterilir, `initialize` öncesinde Web SDK hatası döner).
 
+### Arka plan bölge izleme
+
+Dashboard'da tanımlı coğrafi bölgelere giriş/çıkışı uygulama kapalıyken de yakalar ([ADR-0065](https://github.com/pushizo/pushizo/blob/main/docs/adr/0065-arka-plan-bolge-izleme.md)).
+İzlemeyi işletim sistemi yapar; sunucuya koordinat gitmez, yalnızca giriş/çıkış olayı bildirilir. Varsayılan **kapalıdır**.
+
+```ts
+await Pushizo.Location.setGeofencingEnabled(true);        // kalıcı tercih
+const on = await Pushizo.Location.isGeofencingEnabled();
+```
+
+- Üç koşul birlikte gerekir: `setGeofencingEnabled(true)`, `setShared(true)` ve arka plan konum izni (iOS "Her Zaman",
+  Android `ACCESS_BACKGROUND_LOCATION`). Köprü bu izni manifest/Info.plist'e **eklemez**; `Info.plist`'e `NSLocationAlwaysAndWhenInUseUsageDescription`, Android manifest'ine `ACCESS_BACKGROUND_LOCATION` eklemek
+  uygulamanın işidir. İzin `Location.requestBackgroundPermission()` ile istenir (aşağıda).
+  Mağaza beyanları ve aydınlatma metni uygulama geliştiricisinin sorumluluğundadır.
+- `initialize` öncesinde `setGeofencingEnabled` `NOT_READY` ile reddedilir. `setShared(false)` veya gizlilik onayının geri
+  alınması kayıtlı bölgeleri kaldırır; tercih korunur.
+- **Android:** uygulamada `com.google.android.gms:play-services-location` bağımlılığı bulunmalıdır; yoksa yerel SDK uyarı
+  loglar ve izleme başlamaz.
+- **Web:** arka plan bölge izleme yoktur; `setGeofencingEnabled` etkisizdir, `isGeofencingEnabled()` her zaman `false` döner.
+
+### Özellik bayrakları
+
+Bir özelliği yeni sürüm yayımlamadan açıp kapatın, kademeli yayın yapın veya metin/sayı/JSON değerleri uzaktan yönetin
+([rehber](https://docs.pushizo.com/docs/guides/feature-flags)). Değerler yerel SDK'da oturum başında yenilenir ve cihazda
+saklanır; ağ yoksa son değer, hiç alınmadıysa koddaki varsayılan döner. Gizlilik onayı beklenirken istek gönderilmez.
+
+```ts
+if (await Pushizo.FeatureFlags.isEnabled('yeni_sepet')) showNewCart();
+const limit = await Pushizo.FeatureFlags.getValue('sepet_limiti', 10);   // metin, sayı, boolean, nesne veya dizi
+const refreshed = await Pushizo.FeatureFlags.refresh();                  // yeni değerler alındıysa true
+```
+
+`isEnabled(key, default = false)` ve `getValue(key, default = null)` yerel önbellekten okur; köprü asenkron olduğundan
+Promise döndürürler. Boş anahtar `TypeError` ile reddedilir.
+- **Web:** çağrılar `@pushizo/web` `FeatureFlags` yüzeyine iletilir; Web SDK yenileme sonucu döndürmediğinden `refresh()`
+  yeni değerlerin yazıldığını bayrak gözlemcisinden anlar.
+
+### Android teslimat güçlendirme
+
+Xiaomi, Huawei, Oppo, Vivo ve Samsung gibi üreticilerde pil ve otomatik başlatma yöneticisi arka plandaki uygulamayı durdurur;
+bildirim gecikir ya da gelmez ([rehber](https://docs.pushizo.com/docs/channels/android-delivery)). `Pushizo.Delivery` cihazdaki
+kısıtları okur ve kullanıcıyı ilgili ayar ekranına götürür.
+
+```ts
+const status = await Pushizo.Delivery.status(); // { supported, vendor, rom, risk, restricted, recommendedSettings, … }
+if (await Pushizo.Delivery.shouldShowGuidance()) {      // risk var ve diyalog son 14 günde gösterilmedi
+  const opened = await Pushizo.Delivery.showGuidance(); // hazır diyalog (22 dil); kabul edilirse ayar ekranı açılır
+}
+await Pushizo.Delivery.openSettings('auto_start');      // kendi arayüzünüzden
+```
+
+| Metot | Açıklama |
+|---|---|
+| `Delivery.status()` | `Promise<DeliveryStatus>`: `supported`, `manufacturer`, `brand`, `vendor`, `aggressiveVendor`, `rom`, `romVersion`, `notificationsEnabled`, `channelBlocked`, `batteryOptimizationExempt`, `backgroundRestricted`, `standbyBucket`, `powerSaveMode`, `dataSaverEnabled`, `restricted`, `risk` (`none` \| `elevated` \| `high`), `recommendedSettings`. |
+| `Delivery.shouldShowGuidance(minIntervalDays = 14)` | `Promise<boolean>`: teslim riski var ve hazır diyalog son `minIntervalDays` günde gösterilmedi. |
+| `Delivery.openSettings(setting = 'auto')` | `Promise<boolean>`: ayar ekranı açıldı mı. `setting`: `auto` \| `notifications` \| `auto_start` \| `battery_optimization` \| `app_details`; üreticiye özgü ekran yoksa standart Android ekranına düşülür. |
+| `Delivery.showGuidance({ setting?, message? })` | `Promise<boolean>`: hazır açıklama diyaloğu; kullanıcı kabul etti ve ayar ekranı açıldıysa `true`. SDK diyaloğu kendiliğinden göstermez. |
+
+Yalnızca Android'de etkilidir: iOS'ta ve web'de `status()` `supported: false` ve `risk: 'none'` döner, `openSettings` ile `showGuidance`
+hiçbir şey yapmadan `false` döner. Köprü `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` iznini istemez ve manifest'e eklemez.
+
+### Profil, reklam rızası, reklam kimliği ve rozet
+
+Yerel SDK'ların kalan yüzeyi de köprüde vardır; tek platforma özgü çağrılar diğer platformda zararsızdır (istisna yok,
+etkisiz ya da `false`).
+
+```ts
+await Pushizo.login('user_42', { jwt, profile: { email: 'ali@ornek.com', sms: '+905551112233', tags: { plan: 'pro' }, aliases: { crm: 'c-1' } } });
+await Pushizo.User.setAdsPersonalizationConsent(true);     // reklam kişiselleştirme rızası; güncel tercihleri döndürür
+const consents = await Pushizo.User.getConsents();         // [{ purpose, granted, source, updatedAt }]
+await Pushizo.Ads.setAdvertisingId(gaidOrIdfa);            // null kaydı siler
+const shown = await Pushizo.Notifications.setBadgeCount(3); // rozet bu cihazda gösterilebiliyorsa true
+await Pushizo.Notifications.clearBadge();
+if (await Pushizo.Location.permissionGranted() && !(await Pushizo.Location.backgroundPermissionGranted())) {
+  await Pushizo.Location.requestBackgroundPermission('Mağazaya yaklaşınca haber vermek için'); // iOS: requestAlwaysPermission ile aynı
+}
+const listening = await Pushizo.Chat.isListening();
+const ready = await Pushizo.isInitialized();
+```
+
+| Metot | Açıklama |
+|---|---|
+| `login(externalId, { identityHash?, jwt?, profile? })` | `profile`: `{ email?, sms?, tags?, aliases? }`. Giriş ve profil tek çağrıda; geçersiz e-posta/telefon/takma ad girişten **önce** `INVALID_ARGUMENT` ile reddedilir. Doğrulama ve sıralama yerel SDK'lardadır (Android `login(id, HsUserProfile)`, iOS `login(_:profile:)`, web `login(id, proof, profile)`). |
+| `User.setAdsPersonalizationConsent(granted)` | `Promise<UserPreferences>`: reklam kişiselleştirme rızası (`ads_personalization`); `false` rızayı geri alır. |
+| `User.getConsents()` | `Promise<UserConsent[]>`: `purpose`, `granted`, `source`, `updatedAt` (epoch ms). Abonelik yoksa `NOT_READY`. |
+| `User.registerAdm(token)` | Fire OS ADM kayıt kimliği (yalnızca Android; geçersiz kimlik `INVALID_ARGUMENT`). iOS, web: etkisiz. |
+| `Ads.setAdvertisingId(id \| null)` | GAID/IDFA; `null` veya sıfır kimlik sunucudaki kaydı siler. Kimliği uygulama alır (SDK reklam kitaplığı ve ATT istemi içermez). Web: etkisiz. |
+| `Notifications.setBadgeCount(count)` / `clearBadge()` | `Promise<boolean>`: rozet bu cihazda gösterilebiliyorsa `true`. `count` negatif olmayan tam sayı (`RangeError`). iOS: uygulama rozeti ve bildirim uzantısıyla paylaşılan sayaç (her zaman `true`). Android: başlatıcı rozeti için "sayıyı ayarla" API'si olmadığından yerel SDK sayıyı saklar ve sonraki bildirimlere yazar; Android 8 öncesinde, bildirimler ya da kanal rozeti kapalıyken `false`. Web: App Badging API (yüklü PWA); tarayıcı desteklemiyorsa `false`. |
+| `Notifications.getBadgeCount()` | `Promise<number>`: Android'de saklanan son sayı, iOS'ta uygulama simgesindeki rozet, web'de bu oturumda başarıyla ayarlanan son sayı. |
+| `Location.permissionGranted()` / `backgroundPermissionGranted()` | `Promise<boolean>`: ön plan / arka plan ("Her Zaman") konum izni; yerel SDK'dan okunur, istem açmaz. Web: ön plan için tarayıcı konum izninin son bilinen durumu, arka plan `false`. |
+| `Location.requestBackgroundPermission(rationale?)` / `requestAlwaysPermission()` | `Promise<boolean>`: arka plan konum izni; iki ad aynı çağrıdır. Android: açıklama diyaloğu + `ACCESS_BACKGROUND_LOCATION` (Android 11+ Ayarlar ekranı; manifest'te yoksa `false`). iOS: "Her Zaman" izni (`rationale` kullanılmaz). Web: `false`. |
+| `Chat.isListening()` | `Promise<boolean>`: canlı dinleme açık mı. Web: `false`. |
+| `isInitialized()` | `Promise<boolean>`: yerel SDK başlatıldı mı. |
+
+### Kullanıcı özellikleri, gözlemciler, olay kimliği ve hazır sohbet ekranı
+
+```ts
+await Pushizo.User.setProperty('plan', 'pro');                                  // metin, sayı, mantıksal
+await Pushizo.User.setProperty('address', { city: 'İzmir', tags: ['vip'] });   // dizi / düz nesne
+await Pushizo.User.setProperty('plan', null);                                   // null özelliği siler
+
+const removeFlags = Pushizo.FeatureFlags.addObserver(async () => {
+  applyTheme(await Pushizo.FeatureFlags.getValue('tema', 'acik'));
+});
+const removeInbox = Pushizo.Inbox.addObserver(({ type, itemId, unreadCount }) => setBadge(unreadCount));
+
+// Reklam pikseliyle aynı kimlik verilirse sunucu olayı tekilleşir.
+await Pushizo.Session.sendEvent('purchase', { sku: 'A1' }, 49.9, { eventId: 'order_42:purchase' });
+
+await Pushizo.Chat.show();                        // hazır sohbet ekranı
+if (await Pushizo.Chat.isPresented()) await Pushizo.Chat.hide();
+```
+
+| Metot | Açıklama |
+|---|---|
+| `User.setProperty(key, value)` | Kullanıcı özelliği yazar; `null` siler. `key` 1-64 karakter (`TypeError` / `RangeError`); `value` metin, sonlu sayı, mantıksal ya da bunların dizisi/düz nesnesi (iç içe `null`, `Date`, fonksiyon vb. `TypeError`). Çevrimdışıyken yerel SDK kuyruğunda bekler. |
+| `FeatureFlags.addObserver(cb)` / `removeObserver(cb)` | Bayrak değerleri sunucudan her yenilendiğinde (oturum başı ve `refresh()`) çağrılır; `addObserver` aboneliği kaldıran fonksiyonu döndürür. |
+| `Inbox.addObserver(cb)` / `removeObserver(cb)` | Kutu değişim olayı: `{ type: 'listed' \| 'read' \| 'read_all' \| 'archived' \| 'count', itemId?, unreadCount }`. `read`/`read_all`/`archived` her işlemde, `listed`/`count` yalnızca okunmamış sayısı değiştiğinde bildirilir; `itemId` yalnızca tek öğe olaylarında bulunur. |
+| `Session.sendEvent(name, properties?, value?, { eventId? })` | `eventId` tekilleştirme kimliğidir: 8-64 karakter; harf, rakam ve `. _ : -`. Biçim geçersizse yerel SDK kendi kimliğini üretir; metin olmayan kimlik `TypeError`. |
+| `Chat.show()` / `hide()` | Hazır sohbet ekranını açar / kapatır (Android `HsChatActivity`, iOS modal `HSChatViewController`; web: Web SDK sohbet widget'ı). Ekran açıksa yenisi açılmaz; `initialize` öncesinde `show()` `NOT_READY` ile reddedilir. |
+| `Chat.isPresented()` | `Promise<boolean>`: hazır sohbet ekranı açık mı. Yerel Android SDK bu durumu dışa açmadığından köprü `HsChatActivity` yaşam döngüsünü izler; web'de `show()` çağrılıp `hide()` çağrılmadıysa `true`. |
+
+Köprüye bağlanamayan yerel yüzey: yerel görünümler (`HsChatView`, `HsContentCardsView`, iOS `HSChatViewController` gömme) ve
+`InAppMessages.setRenderer` (özel çizici yerel kod ister); web'e özgü DOM API'leri (`ContentCards.render`, `Placements.render`, `Search`, `InAppMessages.setRenderer`) için doğrudan `@pushizo/web` kullanın.
+
+### Gömülü yerleşimler
+
+Uygulamanın ayırdığı bir alana (ana sayfa afişi, liste arası kart) dashboard'dan içerik gönderin
+([ADR-0068](https://github.com/pushizo/pushizo/blob/main/docs/adr/0068-gomulu-yerlesimler.md)). Köprü yalnızca modeli
+döndürür; çizim uygulamanındır.
+
+```ts
+const messages = await Pushizo.Placements.list('home_banner', { limit: 2 });   // InAppMessage[]
+for (const message of messages) {
+  render(message.display.blocks);                                            // title/body/image/button/carousel blokları veya display.html
+  await Pushizo.Placements.reportImpression(message);                        // içerik ekrana gelince
+}
+await Pushizo.Placements.reportClick(message, buttonId);                     // düğme tıklanınca (buttonId: blok/kart düğmesinin id'si)
+await Pushizo.Placements.reportDismiss(message);                             // kullanıcı kapatınca
+```
+
+- Anahtar `^[a-z][a-z0-9_.-]{0,63}$` kalıbına uymalı, `limit` 1-10 olmalıdır; aksi halde çağrı köprüye gitmeden
+  `TypeError`/`RangeError` ile reddedilir. Abonelik yoksa veya gizlilik onayı bekleniyorsa liste boştur.
+- `InAppMessage` alanları yerel modelle aynıdır (`id`, `priority`, `triggers`, `triggerGroups`, `variantId`, `display`,
+  `remainingImpressions`, `minIntervalSeconds`, `stopAfterInteraction`, `lastImpressionAt`, `endAt`, `language`); zamanlar
+  epoch milisaniyedir. Düğme aksiyonları (`url`, `deeplink`, `tags`, `push_prompt`, `outcome`, `dismiss`) uygulama
+  tarafından yürütülür.
+- Rapor çağrıları yerel tarafta son `list` yanıtlarındaki mesajı kimliğiyle bulur (en çok 50 mesaj saklanır); listeden
+  gelmeyen bir mesaj için rapor sessizce yok sayılır (debug log).
+- Ağ/sunucu hatasında Android boş liste döndürür; iOS, web çağrıyı hata koduyla reddeder.
+
 ### Gizlilik onayı (KVKK/GDPR)
 
 `requiresPrivacyConsent: true` ile başlatıldığında `await Pushizo.setConsentGiven(true)` çağrılana kadar hiçbir ağ çağrısı yapılmaz.
@@ -297,7 +442,7 @@ Hatalar `code` alanı taşır: `INVALID_ARGUMENT` (geçersiz e-posta/telefon, ek
 
 1. Firebase konsolunda Android uygulaması ekleyin, `google-services.json` dosyasını `android/app/` altına koyun. Capacitor şablonu `com.google.gms.google-services` eklentisini dosya varsa otomatik uygular.
 2. Pushizo dashboard'unda uygulamanın Android (FCM) kimlik bilgisi adımında Firebase servis hesabı JSON'unu yükleyin; kayıt sonrası otomatik doğrulanır (kurulum sihirbazında **Capacitor/Ionic** seçilebilir).
-3. Eklenti `com.pushizo:pushizo-android` artefaktına bağlıdır. Yayın öncesi monorepo kullanımında `sdk/android` içinde `gradle :pushizo:publishToMavenLocal` çalıştırın ve uygulamanın `android/build.gradle` dosyasındaki `allprojects.repositories` bloğuna `mavenLocal()` ekleyin. SDK sürümü `variables.gradle` içinde `pushizoAndroidVersion` ile değiştirilebilir.
+3. Eklenti `com.pushizo:pushizo-android:0.3.0` artefaktına bağlıdır (özellik bayrakları, yerleşimler ve bölge izleme bu sürümle gelir). Yayın öncesi monorepo kullanımında `sdk/android` içinde `gradle :pushizo:publishToMavenLocal` çalıştırın ve uygulamanın `android/build.gradle` dosyasındaki `allprojects.repositories` bloğuna `mavenLocal()` ekleyin. SDK sürümü `variables.gradle` içinde `pushizoAndroidVersion` ile değiştirilebilir.
 4. Android 13+ bildirim izni `Notifications.requestPermission()` ile istenir. Bildirim ikonu için `AndroidManifest.xml` içinde `com.pushizo.sdk.default_notification_icon` meta-data'sı verilebilir.
 
 Eklenti, JS ile yapılan ilk `initialize` ayarlarını (yalnızca uygulama kimliği ve herkese açık ayarlar) saklar; süreç bildirim tıklaması veya FCM mesajıyla yeniden başladığında SDK WebView yüklenmeden başlatılır, böylece tıklama ve `received` bildirimi kaybolmaz.
@@ -343,7 +488,7 @@ import Pushizo
 
 class NotificationService: UNNotificationServiceExtension {
     let hs = PushizoNotificationServiceExtension(appId: "app_xxx", apiUrl: "https://api.pushizo.com",
-                                                    appGroup: "group.com.example.app.pushizo")
+                                                    appGroup: "group.com.pushizo.app.pushizo")
 
     override func didReceive(_ request: UNNotificationRequest, withContentHandler handler: @escaping (UNNotificationContent) -> Void) {
         hs.didReceive(request, withContentHandler: handler)
@@ -357,7 +502,7 @@ class NotificationService: UNNotificationServiceExtension {
 
 ## Web
 
-Web platformunda `@pushizo/web` kullanılır: `PushizoSDKWorker.js` dosyasını sitenizin köküne koyun ve gerekirse `initialize(appId, { web: { serviceWorkerPath: '/PushizoSDKWorker.js' } })` verin. Web'de `removeNotification`, `User.getEmails` ve `User.getSmsNumbers` yoktur (`UNAVAILABLE`); `clearAll` service worker bildirimlerini kapatır. `User.setPreferences` web'de güncel listeyi okuyup kategori/kanalı denetler, yazmayı web SDK'nın çevrimdışı kuyruğuna verir ve yazma sonrası listeyi döndürür (istek arka planda gönderilir).
+Web platformunda `@pushizo/web` kullanılır: `PushizoSDKWorker.js` dosyasını sitenizin köküne koyun ve gerekirse `initialize(appId, { web: { serviceWorkerPath: '/PushizoSDKWorker.js' } })` verin. Web'de `removeNotification`, `User.getEmails` ve `User.getSmsNumbers` yoktur (`UNAVAILABLE`); `clearAll` service worker bildirimlerini kapatır. `FeatureFlags` ve `Placements` Web SDK'ya iletilir (yerleşim modeli native ile aynı biçime çevrilir, `language` web'de null); arka plan bölge izleme web'de yoktur. Rozet (`setBadgeCount` / `clearBadge`) App Badging API'ye, `User.setProperty`, profille `login`, `sendEvent` `eventId`'si, `FeatureFlags` / `Inbox` gözlemcileri ve `Location.permissionGranted` Web SDK'daki karşılıklarına iletilir; `Chat.show()` Web SDK sohbet widget'ını açar. `User.setPreferences` web'de güncel listeyi okuyup kategori/kanalı denetler, yazmayı web SDK'nın çevrimdışı kuyruğuna verir ve yazma sonrası listeyi döndürür (istek arka planda gönderilir).
 
 ## Geliştirme
 

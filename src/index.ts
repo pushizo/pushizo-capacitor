@@ -18,6 +18,8 @@ const EVENT_TYPES: readonly BridgeEventType[] = [
   'inAppLifecycle',
   'chatEvent',
   'chatOpen',
+  'featureFlagsChange',
+  'inboxChange',
 ];
 
 /** Capacitor eklentisini cephenin taşıma arayüzüne uyarlar. */
@@ -45,7 +47,7 @@ export function capacitorBridge(plugin: PushizoPlugin): Bridge {
  *
  * ```ts
  * import { Pushizo } from '@pushizo/capacitor';
- * await Pushizo.initialize('app_…', { apiUrl: 'https://api.example.com' });
+ * await Pushizo.initialize('app_…', { apiUrl: 'https://api.pushizo.com' });
  * await Pushizo.Notifications.requestPermission();
  * await Pushizo.login('user_42');
  * await Pushizo.User.addTag('plan', 'pro');
